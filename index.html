@@ -27,7 +27,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
-body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14px;min-height:100vh;}
+body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;min-height:100vh;}
 
 /* ── TOAST ── */
 #toastWrap{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
@@ -280,7 +280,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14
 <!-- ══ LICENSE SCREEN ══ -->
 <div class="screen active" id="licenseScreen">
   <div class="license-box">
-    <div class="license-logo">📂 Dokument<span>Organizer</span></div>
+    <div class="license-logo">📂 <b>DOKU</b>menten<span><b>ORGA</b>nizer</span></div>
     <div class="license-sub">KI-gestützte Dokumentenverwaltung</div>
     <div class="license-label">Lizenznummer eingeben</div>
     <input class="license-input" id="licInput" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" name="do-not-autofill" readonly onfocus="this.removeAttribute('readonly')" onclick="this.removeAttribute('readonly')">
@@ -385,7 +385,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14
   </div>
 
   <div class="app-header">
-    <div class="app-logo"><span class="app-logo-mark">📂</span> Dokument<span>Organizer</span></div>
+    <div class="app-logo" onclick="showPage('dashboard', document.querySelector('.nav-btn'))" style="cursor:pointer;" title="Dashboard"><span class="app-logo-mark">📂</span> <b>DOKU</b>menten<span><b>ORGA</b>nizer</span></div>
     <div class="header-right">
       <div class="status-pill"><div class="status-dot ok" id="appStatusDot"></div><span id="appStatusText">Bereit</span></div>
       <button class="btn btn-ghost btn-sm" onclick="openFolder()" title="Ordner neu verbinden">📁</button>
@@ -395,7 +395,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14
   <div class="app-body">
     <div class="sidebar">
       <button class="nav-btn active" onclick="showPage('dashboard',this)"><span class="nav-icon">🏠</span>Dashboard</button>
-      <button class="nav-btn" onclick="showPage('queue',this)"><span class="nav-icon">📥</span>Warteschlange<span class="nav-badge" id="qBadge" style="display:none">0</span></button>
+      <button class="nav-btn" onclick="showPage('queue',this)"><span class="nav-icon">📥</span>TODO - Unklar<span class="nav-badge" id="qBadge" style="display:none">0</span></button>
       <button class="nav-btn" onclick="showPage('kategorien',this)"><span class="nav-icon">🗂</span>Kategorien</button>
       <button class="nav-btn" onclick="showPage('log',this)"><span class="nav-icon">📋</span>Protokoll</button>
       <button class="nav-btn" onclick="showPage('einstellungen',this)"><span class="nav-icon">⚙️</span>Einstellungen</button>
@@ -429,31 +429,32 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14
           <div class="stat-card"><div class="stat-num" id="dash-kats">0</div><div class="stat-label">Kategorien</div><div class="stat-sub">angelegt</div></div>
         </div>
         <div class="dash-section">
-          <div class="dash-section-title">Zuletzt verarbeitet</div>
-          <div id="dash-recent"><div style="color:var(--text3);font-size:13px;">Noch keine Dokumente verarbeitet</div></div>
-        </div>
-        <div class="dash-section" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
-          <div style="width:100%;display:flex;justify-content:flex-end;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div class="dash-section-title" style="margin-bottom:0;">Zuletzt verarbeitet</div>
             <button class="btn btn-ghost btn-sm" onclick="openBelegeCheck()">🗃 Belege prüfen</button>
           </div>
+          <div id="dash-recent"><div style="color:var(--text3);font-size:13px;">Noch keine Dokumente verarbeitet</div></div>
+        </div>
+        <!-- Geschäftliche Nutzung – ausgeblendet, im Code behalten -->
+        <div class="dash-section" style="display:none;">
           <div>
             <div style="font-size:14px;font-weight:700;color:#f0ebe5;margin-bottom:6px;">Nutzungsmodus: <span class="privat-badge">🔒 Privat</span></div>
             <div style="font-size:13px;color:#4d6a80;line-height:1.6;">Für buchhalterische Ablage mit GoBD-konformen Aufbewahrungsfristen und Buchhaltungskategorien:</div>
           </div>
-          <a href="upgrade.html" class="upgrade-btn" style="max-width:280px;text-decoration:none;">🏢 Zur geschäftlichen Nutzung →</a>
+          <a href="#" class="upgrade-btn" style="max-width:280px;text-decoration:none;" onclick="return false;">🏢 Zur geschäftlichen Nutzung →</a>
         </div>
       </div>
 
       <!-- QUEUE PAGE -->
       <div class="page" id="page-queue">
-        <div class="page-hd"><h1>Warteschlange</h1><p>Dokumente die manuell zugeordnet werden müssen</p></div>
+        <div class="page-hd"><h1>TODO - Unklar</h1><p>Dokumente die manuell zugeordnet werden müssen</p></div>
         <div id="queueContent"><div class="empty">✅ Keine offenen Dokumente</div></div>
       </div>
 
       <!-- KATEGORIEN PAGE -->
       <div class="page" id="page-kategorien">
         <div class="page-hd"><h1>Kategorien</h1><p>Kategorien mit Beschreibungen helfen Gemini bei der Erkennung</p></div>
-        <div class="warn-box">📁 Kategorien werden als Unterordner angelegt. Ordnernamen nie manuell ändern. Beim Löschen einer Kategorie bleibt der Ordner auf dem Gerät erhalten.</div>
+        <div class="warn-box">📁 Kategorien werden als Unterordner angelegt. Wenn ein Ordner manuell umbenannt wird, erkennt die App ihn nicht mehr und bietet Optionen an. Beim Löschen einer Kategorie bleibt der Ordner auf dem Gerät erhalten.</div>
         <div class="card">
           <div class="card-hd">
             <span class="card-title">Aktive Kategorien</span>
@@ -526,10 +527,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14
           <button class="btn btn-ghost btn-sm" style="margin-top:12px;" onclick="deactivateLicense()">Lizenz entfernen</button>
         </div>
 
-        <div class="card" style="border-color:rgba(212,130,10,.25);">
+        <div class="card" style="border-color:rgba(212,130,10,.25);display:none;">
           <div class="card-title" style="margin-bottom:10px;color:var(--accent);">🏢 Geschäftliche Nutzung</div>
           <p style="font-size:13px;color:#8ba4b8;margin-bottom:12px;">Du nutzt aktuell den <strong style="color:#f0ebe5;">Privat-Modus</strong>. Für geschäftliche Dokumentenablage mit GoBD-konformen Aufbewahrungsfristen und vordefinierten Buchhaltungskategorien:</p>
-          <a href="upgrade.html" class="upgrade-btn" style="text-decoration:none;">🏢 Zur geschäftlichen Nutzung erweitern →</a>
+          <a href="#" class="upgrade-btn" style="text-decoration:none;" onclick="return false;">🏢 Zur geschäftlichen Nutzung erweitern →</a>
         </div>
 
       </div>
@@ -846,14 +847,12 @@ function saveState() {
 async function initApp() {
   const lic = localStorage.getItem('ds_license');
   if (!lic) { showScreen('licenseScreen'); return; }
-  // Lokale Schnellprüfung: Format + gespeicherte Daten vorhanden?
   const licData = getLicenseData();
   if (!licData || !licData.valid) {
     localStorage.removeItem('ds_license');
     localStorage.removeItem('ds_lic_data');
     showScreen('licenseScreen'); return;
   }
-  // Ablaufdatum lokal prüfen
   if (licData.expiry) {
     const expDate = new Date(licData.expiry);
     if (expDate < new Date()) {
@@ -870,42 +869,181 @@ async function initApp() {
   updateLicInfo();
   renderDashboard();
   showPage('dashboard', document.querySelector('.nav-btn'));
-  // Hintergrundprüfung starten (non-blocking)
   backgroundLicenseCheck();
 
-  // Show slim reconnect banner
+  // Ordner-Berechtigung automatisch wiederherstellen via IndexedDB
+  await tryAutoReconnect();
+}
+
+// ══════════════════════════════════════════════
+// ORDNER-PERSISTENZ via IndexedDB
+// Speichert den FileSystemDirectoryHandle damit
+// beim nächsten Start nur einmal bestätigt wird.
+// ══════════════════════════════════════════════
+const IDB_NAME = 'DokuOrganizer';
+const IDB_STORE = 'handles';
+const IDB_KEY = 'workspaceHandle';
+
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveHandleToIDB(handle) {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(handle, IDB_KEY);
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+  } catch(e) { console.warn('[IDB] Speichern fehlgeschlagen:', e.message); }
+}
+
+async function loadHandleFromIDB() {
+  try {
+    const db = await openIDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch(e) { return null; }
+}
+
+async function tryAutoReconnect() {
   const savedFolder = localStorage.getItem('ds_workspace_name');
   const banner = document.getElementById('reconnectBanner');
   const nameEl = document.getElementById('reconnectFolderName');
-  if (banner) banner.style.display = 'flex';
-  if (nameEl && savedFolder) nameEl.textContent = savedFolder;
 
+  // Handle aus IndexedDB laden
+  const handle = await loadHandleFromIDB();
+
+  if (handle) {
+    // Berechtigung prüfen – ohne Dialog wenn möglich
+    try {
+      const perm = await handle.queryPermission({ mode: 'readwrite' });
+      if (perm === 'granted') {
+        // Berechtigung noch aktiv – direkt verbinden
+        workspaceHandle = handle;
+        localStorage.setItem('ds_workspace_name', handle.name);
+        eingangsHandle = await handle.getDirectoryHandle('_Eingang', {create:true});
+        document.getElementById('appStatusDot').className = 'status-dot ok';
+        document.getElementById('appStatusText').textContent = 'Bereit · ' + handle.name;
+        const fi = document.getElementById('folderInfo');
+        if (fi) fi.textContent = '✓ Verbunden: ' + handle.name;
+        if (banner) banner.style.display = 'none';
+        renderDashboard();
+        return;
+      } else if (perm === 'prompt') {
+        // Einmalige Bestätigung nötig – Banner zeigen mit Hinweis
+        if (banner) {
+          banner.style.display = 'flex';
+          if (nameEl && savedFolder) nameEl.textContent = savedFolder;
+        }
+        document.getElementById('appStatusDot').className = 'status-dot warn';
+        document.getElementById('appStatusText').textContent = 'Ordner bestätigen';
+        return;
+      }
+    } catch(e) { console.warn('[AutoReconnect] queryPermission fehlgeschlagen:', e.message); }
+  }
+
+  // Kein gespeicherter Handle – Banner zeigen
+  if (banner) {
+    banner.style.display = 'flex';
+    if (nameEl && savedFolder) nameEl.textContent = savedFolder;
+  }
   document.getElementById('appStatusDot').className = 'status-dot warn';
   document.getElementById('appStatusText').textContent = 'Ordner verbinden';
 }
 
 async function reconnectFolder() {
+  const savedFolder = localStorage.getItem('ds_workspace_name');
+  // Gespeicherten Handle versuchen mit requestPermission
+  const handle = await loadHandleFromIDB();
+  if (handle) {
+    try {
+      const perm = await handle.requestPermission({ mode: 'readwrite' });
+      if (perm === 'granted') {
+        workspaceHandle = handle;
+        localStorage.setItem('ds_workspace_name', handle.name);
+        eingangsHandle = await handle.getDirectoryHandle('_Eingang', {create:true});
+        for (const kat of categories) {
+          try { await handle.getDirectoryHandle(kat.folderName, {create:true}); } catch(e) {}
+        }
+        const banner = document.getElementById('reconnectBanner');
+        if (banner) banner.style.display = 'none';
+        document.getElementById('appStatusDot').className = 'status-dot ok';
+        document.getElementById('appStatusText').textContent = 'Bereit · ' + handle.name;
+        const fi = document.getElementById('folderInfo');
+        if (fi) fi.textContent = '✓ Verbunden: ' + handle.name;
+        toast('✓ Verbunden: ' + handle.name, 'ok');
+        renderDashboard();
+        return;
+      }
+    } catch(e) { /* requestPermission fehlgeschlagen – Picker öffnen */ }
+  }
+
+  // Neu auswählen – mit Hinweis auf Datenschutz
   try {
-    const handle = await window.showDirectoryPicker({mode:'readwrite'});
-    // Kein Confirm-Dialog – einfach den gewählten Ordner verwenden
-    workspaceHandle = handle;
-    localStorage.setItem('ds_workspace_name', handle.name);
-    eingangsHandle = await handle.getDirectoryHandle('_Eingang', {create:true});
+    if (!await showFolderConsent()) return;
+    const newHandle = await window.showDirectoryPicker({mode:'readwrite'});
+    workspaceHandle = newHandle;
+    localStorage.setItem('ds_workspace_name', newHandle.name);
+    await saveHandleToIDB(newHandle);
+    eingangsHandle = await newHandle.getDirectoryHandle('_Eingang', {create:true});
     for (const kat of categories) {
-      try { await handle.getDirectoryHandle(kat.folderName, {create:true}); } catch(e) {}
+      try { await newHandle.getDirectoryHandle(kat.folderName, {create:true}); } catch(e) {}
     }
-    // Banner ausblenden
     const banner = document.getElementById('reconnectBanner');
     if (banner) banner.style.display = 'none';
     document.getElementById('appStatusDot').className = 'status-dot ok';
-    document.getElementById('appStatusText').textContent = 'Bereit · ' + handle.name;
+    document.getElementById('appStatusText').textContent = 'Bereit · ' + newHandle.name;
     const fi = document.getElementById('folderInfo');
-    if (fi) fi.textContent = '✓ Verbunden: ' + handle.name;
-    toast('✓ Verbunden: ' + handle.name, 'ok');
+    if (fi) fi.textContent = '✓ Verbunden: ' + newHandle.name;
+    toast('✓ Verbunden: ' + newHandle.name, 'ok');
     renderDashboard();
   } catch(e) {
     if (e.name !== 'AbortError') toast('Fehler beim Verbinden: ' + e.message, 'err');
   }
+}
+
+function showFolderConsent() {
+  return new Promise(resolve => {
+    // Prüfen ob Consent bereits gegeben
+    if (localStorage.getItem('ds_folder_consent') === '1') { resolve(true); return; }
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9000;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:28px 30px;max-width:480px;width:94vw;">
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:12px;">📁 Ordnerzugriff</h3>
+        <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px;">
+          Die App benötigt Zugriff auf einen lokalen Ordner um Dokumente zu lesen und abzulegen.<br><br>
+          <strong style="color:var(--text);">Wichtige Hinweise:</strong><br>
+          • Ihre Dokumente verlassen niemals Ihr Gerät<br>
+          • Es werden nur Kopien erstellt, keine Originale gelöscht<br>
+          • Kein Datenaustausch mit Dritten<br>
+          • Die App übernimmt keine Haftung für Datenverlust – bitte regelmäßig sichern
+        </p>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button id="_consentNo" class="btn btn-ghost">Abbrechen</button>
+          <button id="_consentYes" class="btn btn-primary">Verstanden – Ordner wählen</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('_consentYes').onclick = () => {
+      localStorage.setItem('ds_folder_consent', '1');
+      document.body.removeChild(overlay);
+      resolve(true);
+    };
+    document.getElementById('_consentNo').onclick = () => {
+      document.body.removeChild(overlay);
+      resolve(false);
+    };
+  });
 }
 
 function skipReconnect() {
@@ -963,10 +1101,11 @@ function setupSaveApiKey() {
 
 async function setupSelectFolder() {
   try {
+    if (!await showFolderConsent()) return;
     const handle = await window.showDirectoryPicker({mode:'readwrite'});
     workspaceHandle = handle;
     localStorage.setItem('ds_workspace_name', handle.name);
-    // Eingangsordner anlegen
+    await saveHandleToIDB(handle);
     eingangsHandle = await handle.getDirectoryHandle('_Eingang', {create:true});
     const st = document.getElementById('folderStatus');
     st.className = 'step-status ok';
@@ -996,10 +1135,11 @@ async function finishSetup() {
 // ══════════════════════════════════════════════
 async function openFolder() {
   try {
+    if (!await showFolderConsent()) return;
     const handle = await window.showDirectoryPicker({mode:'readwrite'});
-    // Kein Confirm – einfach verbinden
     workspaceHandle = handle;
     localStorage.setItem('ds_workspace_name', handle.name);
+    await saveHandleToIDB(handle);
     eingangsHandle = await handle.getDirectoryHandle('_Eingang', {create:true});
     for (const kat of categories) {
       try { await handle.getDirectoryHandle(kat.folderName, {create:true}); } catch(e) {}
@@ -1435,8 +1575,53 @@ async function sicherKopieren(srcFolderName, destFolderName, fileName) {
 
 /** Kompatibilitäts-Wrapper für bestehende Aufrufe */
 async function moveFile(srcHandle, srcFolderHandle, destFolderName, newName) {
-  const destFolder = await workspaceHandle.getDirectoryHandle(destFolderName, {create:true});
+  let destFolder;
+  try {
+    destFolder = await workspaceHandle.getDirectoryHandle(destFolderName, {create:false});
+  } catch(e) {
+    // Ordner nicht gefunden – Kategorie-Ordner prüfen und Dialog anzeigen
+    const result = await showFolderMissingDialog(destFolderName);
+    if (result === 'create') {
+      destFolder = await workspaceHandle.getDirectoryHandle(destFolderName, {create:true});
+      toast('✓ Ordner "' + destFolderName + '" neu erstellt', 'ok');
+    } else {
+      throw new Error('Zielordner "' + destFolderName + '" nicht gefunden – Vorgang abgebrochen');
+    }
+  }
   return sicherVerschieben(srcHandle, srcFolderHandle, destFolder, newName);
+}
+
+function showFolderMissingDialog(folderName) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9000;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:28px 30px;max-width:480px;width:94vw;">
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:12px;">📁 Ordner nicht auffindbar</h3>
+        <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px;">
+          Der Ordner <strong style="color:var(--accent);font-family:var(--mono);">${folderName}</strong> wurde nicht gefunden.<br><br>
+          Möglicherweise wurde er manuell umbenannt oder gelöscht.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button id="_fmCreate" class="btn btn-primary" style="justify-content:flex-start;">
+            ✓ Neuen Kategorieordner erstellen
+          </button>
+          <button id="_fmRename" class="btn btn-ghost" style="justify-content:flex-start;">
+            ✏️ Kategorie umbenennen (Kategorien-Tab öffnen)
+          </button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('_fmCreate').onclick = () => {
+      document.body.removeChild(overlay);
+      resolve('create');
+    };
+    document.getElementById('_fmRename').onclick = () => {
+      document.body.removeChild(overlay);
+      showPage('kategorien', document.querySelectorAll('.nav-btn')[2]);
+      resolve('abort');
+    };
+  });
 }
 
 /** Datei aus Eingang in Kategorie verschieben (für Queue-Auflösung) */
@@ -1632,7 +1817,7 @@ function renderKategorien() {
           '<button class="btn btn-danger btn-sm" onclick="deleteKategorie(' + i + ')">Entfernen</button>' +
         '</div>' +
       '</div>' +
-      '<div class="kat-folder-path">📂 ' + esc(k.folderName) + '</div>' +
+      (k.folderName !== k.name ? '<div class="kat-folder-path">📂 Ordner: ' + esc(k.folderName) + '</div>' : '') +
       (k.description ? '<div class="kat-description">' + esc(k.description) + '</div>' : '') +
       (k.keywords ? '<div class="kat-keywords">🔑 ' + esc(k.keywords) + '</div>' : '') +
       '<div id="kat-edit-' + i + '" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">' +
@@ -1663,8 +1848,9 @@ function saveKatEdit(i) {
 
 function toggleAddKat() {
   const f = document.getElementById('addKatForm');
-  f.style.display = f.style.display === 'none' ? 'grid' : 'none';
-  if (f.style.display === 'grid') document.getElementById('newKatName').focus();
+  const isHidden = f.style.display === 'none' || f.style.display === '';
+  f.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) document.getElementById('newKatName').focus();
 }
 
 async function addKategorie() {
@@ -1733,16 +1919,24 @@ function addToLog(origName, newName, kategorie, konfidenz, steuer, typ) {
 function renderLog() {
   const tbody = document.getElementById('logBody');
   if (log.length === 0) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty">Noch keine Einträge</div></td></tr>'; return; }
-  tbody.innerHTML = log.map(l =>
-    '<tr>' +
+  tbody.innerHTML = log.map(l => {
+    // Alle Kategorien anzeigen: Primär + Sekundärkategorien wenn steuerrelevant
+    let katAnzeige = esc(l.kategorie||'–');
+    if (l.steuer) {
+      const sekundaer = categories.filter(k => k.isSecondary && k.name !== l.kategorie);
+      if (sekundaer.length > 0) {
+        katAnzeige += sekundaer.map(k => ' / <span style="color:var(--accent);font-size:10px;">' + esc(k.name) + '</span>').join('');
+      }
+    }
+    return '<tr>' +
     '<td>' + esc(l.datum||'–') + '</td>' +
     '<td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+esc(l.origName||'')+'">'+esc(l.origName||'–')+'</td>' +
     '<td style="max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+esc(l.newName||'')+'">'+esc(l.newName||'–')+'</td>' +
-    '<td>'+esc(l.kategorie||'–')+'</td>' +
+    '<td>' + katAnzeige + '</td>' +
     '<td>'+(l.konfidenz ? l.konfidenz+'%' : '–')+'</td>' +
     '<td><span class="tag '+(l.typ==='Manuell'?'tag-manual':'tag-auto')+'">'+esc(l.typ||'–')+'</span></td>' +
-    '</tr>'
-  ).join('');
+    '</tr>';
+  }).join('');
 }
 
 // ══════════════════════════════════════════════
@@ -1843,9 +2037,11 @@ function renderDashboard() {
     if (log.length === 0) {
       recentEl.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0;">Noch keine Dokumente verarbeitet</div>';
     } else {
-      const recent = log.slice(0,5);
-      recentEl.innerHTML = recent.map(l =>
-        '<div class="dash-log-row" style="cursor:pointer;" onclick="openLogFile(' + JSON.stringify(l) + ')">' +
+      const recent = log.slice(0,10);
+      // Index-basiert statt JSON im onclick (sicher bei Sonderzeichen)
+      window._dashRecentLog = recent;
+      recentEl.innerHTML = recent.map((l, idx) =>
+        '<div class="dash-log-row" style="cursor:pointer;" onclick="openLogFile(window._dashRecentLog[' + idx + '])">' +
         '<span class="dash-log-name" title="' + esc(l.newName||'') + '">' + esc(l.newName||'–') + '</span>' +
         '<span style="display:flex;gap:8px;align-items:center;flex-shrink:0;">' +
           '<span style="font-size:11px;color:var(--text3);font-family:var(--mono);">' + esc(l.kategorie||'–') + '</span>' +
@@ -1989,13 +2185,14 @@ function openBelegeCheck() {
   if (alte.length === 0) {
     listEl.innerHTML = '<div class="empty" style="padding:20px 0;">✅ Keine Belege älter als ' + retention + ' Jahre gefunden.</div>';
   } else {
+    window._belegeCheckList = alte;
     listEl.innerHTML = alte.map((l, i) => {
       return '<div class="q-card" style="margin-bottom:8px;">' +
         '<div class="q-card-name">' + esc(l.newName||'–') + '</div>' +
         '<div class="q-card-meta">Kategorie: ' + esc(l.kategorie) + '</div>' +
         '<div style="display:flex;gap:8px;margin-top:8px;">' +
           '<button class="btn btn-ghost btn-sm" onclick="belegeBehalten(' + i + ')">✓ Behalten</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="belegeInPapierkorb(this,' + JSON.stringify(l).replace(/"/g,'&quot;') + ')">🗑 In Papierkorb</button>' +
+          '<button class="btn btn-danger btn-sm" id="belege-btn-' + i + '" onclick="belegeInPapierkorb(' + i + ')">🗑 In Papierkorb</button>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -2012,9 +2209,12 @@ function belegeBehalten(i) {
   toast('Beleg behalten', 'info');
 }
 
-async function belegeInPapierkorb(btn, l) {
+async function belegeInPapierkorb(idx) {
+  const l = window._belegeCheckList?.[idx];
+  if (!l) { toast('Eintrag nicht gefunden', 'err'); return; }
   if (!workspaceHandle) { toast('Ordner nicht verbunden', 'warn'); return; }
-  btn.disabled = true; btn.textContent = '⏳';
+  const btn = document.getElementById('belege-btn-' + idx);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   try {
     const belegeKat = categories.find(k => k.name === 'Belege');
     const folderName = belegeKat ? belegeKat.folderName : 'Belege';
@@ -2022,15 +2222,14 @@ async function belegeInPapierkorb(btn, l) {
     const destFolder = await workspaceHandle.getDirectoryHandle('_Papierkorb', {create:true});
     const srcHandle = await srcFolder.getFileHandle(l.newName, {create:false});
     await sicherVerschieben(srcHandle, srcFolder, destFolder, l.newName);
-    // Aus Log entfernen
-    const idx = log.findIndex(e => e.newName === l.newName && e.kategorie === l.kategorie);
-    if (idx !== -1) log.splice(idx, 1);
+    const logIdx = log.findIndex(e => e.newName === l.newName && e.kategorie === l.kategorie);
+    if (logIdx !== -1) log.splice(logIdx, 1);
     saveState();
     toast('✓ In Papierkorb verschoben: ' + l.newName, 'ok');
-    openBelegeCheck(); // Aktualisieren
+    openBelegeCheck();
   } catch(e) {
     toast('Fehler: ' + e.message, 'err');
-    btn.disabled = false; btn.textContent = '🗑 In Papierkorb';
+    if (btn) { btn.disabled = false; btn.textContent = '🗑 In Papierkorb'; }
   }
 }
 
