@@ -288,42 +288,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
   .main-content{padding:16px;}
   .run-panel{flex-direction:column;align-items:flex-start;}
 }
-
-/* ── HEADER NAV LINKS (App) ── */
-.header-nav{display:flex;align-items:center;gap:20px;}
-.header-nav a{color:var(--text2);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s;}
-.header-nav a:hover{color:var(--accent);}
-.header-nav-cta{background:var(--accent);color:#0d1f2d !important;padding:6px 14px;border-radius:7px;font-size:13px;font-weight:700 !important;}
-.header-nav-cta:hover{background:var(--accent-light) !important;}
-@media(max-width:680px){.header-nav{display:none;}}
-
-/* ── SHARED FOOTER ── */
-.app-footer{
-  border-top:1px solid var(--border);
-  padding:10px 28px;
-  display:flex;align-items:center;justify-content:space-between;
-  flex-wrap:wrap;gap:8px;
-  font-size:11px;color:var(--text3);
-  background:var(--surface);
-  flex-shrink:0;
-}
-.app-footer a{color:var(--text3);text-decoration:none;transition:color .15s;}
-.app-footer a:hover{color:var(--accent);}
-.app-footer-links{display:flex;gap:16px;flex-wrap:wrap;}
-
-/* ── LICENSE SCREEN FOOTER ── */
-.lic-footer{
-  position:fixed;bottom:0;left:0;right:0;
-  padding:10px 28px;
-  display:flex;align-items:center;justify-content:center;gap:20px;
-  font-size:11px;color:var(--text3);
-  background:rgba(13,31,45,.95);
-  border-top:1px solid var(--border);
-  z-index:10;
-}
-.lic-footer a{color:var(--text3);text-decoration:none;transition:color .15s;}
-.lic-footer a:hover{color:var(--accent);}
-
 </style>
 </head>
 <body>
@@ -332,18 +296,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 
 <!-- ══ LICENSE SCREEN ══ -->
 <div class="screen active" id="licenseScreen">
-
-  <!-- Mini-Nav -->
+  <!-- Mini-Nav auf Lizenzseite -->
   <div style="position:absolute;top:0;left:0;right:0;height:56px;background:rgba(13,31,45,.95);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;z-index:10;">
     <div style="font-family:var(--serif);font-size:18px;color:var(--text);">📂 <b>DOKU</b>menten<span style="color:var(--accent);"><b>ORGA</b>nizer</span></div>
     <div style="display:flex;gap:16px;align-items:center;">
-      <a href="https://vmenle.github.io/DokumentenOrganizer/landing.html" style="color:var(--text2);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">Home</a>
-      <a href="https://vmenle.github.io/DokumentenOrganizer/info.html" style="color:var(--text2);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">Anleitung</a>
-      <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html" style="color:var(--text2);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">AGB</a>
-      <a href="https://vmenle.github.io/DokumentenOrganizer/landing.html#beta" style="background:var(--accent);color:#0d1f2d;padding:7px 16px;border-radius:7px;font-size:13px;font-weight:700;text-decoration:none;">Lizenz kaufen</a>
+      <a href="landing.html" style="color:var(--text2);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">Home</a>
+      <a href="info.html" style="color:var(--text2);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">Anleitung</a>
+      <a href="agb.html" style="color:var(--text2);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">AGB</a>
+      <a href="landing.html#beta" style="background:var(--accent);color:#0d1f2d;padding:7px 16px;border-radius:7px;font-size:13px;font-weight:700;text-decoration:none;">Lizenz kaufen</a>
     </div>
   </div>
-
   <div class="license-box" style="margin-top:40px;">
     <div class="license-logo">📂 <b>DOKU</b>menten<span><b>ORGA</b>nizer</span></div>
     <div class="license-sub">KI-gestützte Dokumentenverwaltung</div>
@@ -354,34 +316,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
     <div class="license-info">
       Deine Dokumente verlassen niemals dein Gerät.<br>
       Nur der Gemini-API-Call geht an Google.<br><br>
-      Noch keine Lizenz? <a href="https://vmenle.github.io/DokumentenOrganizer/landing.html#beta" style="color:var(--accent);">Hier bewerben →</a>
+      Noch keine Lizenz? <a href="landing.html#beta" style="color:var(--accent);">Hier bewerben →</a>
     </div>
   </div>
-
-  <!-- Footer Lizenzseite -->
-  <div class="lic-footer">
-    <span>© 2025 VM – Energy and Leisure · Volker Menle · Mögglingen</span>
-    <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html" target="_blank">Impressum</a>
-    <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html" target="_blank">AGB</a>
-    <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html" target="_blank">Datenschutz</a>
-  </div>
-
 </div>
 
 <!-- ══ SETUP SCREEN ══ -->
 <div class="screen" id="setupScreen">
-
-  <!-- Mini-Nav -->
-  <div style="position:absolute;top:0;left:0;right:0;height:56px;background:rgba(13,31,45,.95);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;z-index:10;">
-    <div style="font-family:var(--serif);font-size:18px;color:var(--text);">📂 <b>DOKU</b>menten<span style="color:var(--accent);"><b>ORGA</b>nizer</span></div>
-    <div style="display:flex;gap:16px;align-items:center;">
-      <a href="https://vmenle.github.io/DokumentenOrganizer/landing.html" style="color:var(--text2);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">Home</a>
-      <a href="https://vmenle.github.io/DokumentenOrganizer/info.html" style="color:var(--text2);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">Anleitung</a>
-      <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html" style="color:var(--text2);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">AGB</a>
-    </div>
-  </div>
-
-  <div class="setup-box" style="margin-top:40px;">
+  <div class="setup-box">
     <div class="setup-title">Einrichtung <span>abschließen</span></div>
     <div class="setup-sub">Einmalig – dauert 2 Minuten</div>
     <div class="setup-steps">
@@ -406,15 +348,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
     </div>
     <button class="setup-continue" id="setupContinueBtn" onclick="finishSetup()" disabled>Weiter zur App →</button>
   </div>
-
-  <!-- Footer Setup -->
-  <div class="lic-footer">
-    <span>© 2025 VM – Energy and Leisure · Volker Menle · Mögglingen</span>
-    <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html" target="_blank">Impressum</a>
-    <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html" target="_blank">AGB</a>
-    <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html" target="_blank">Datenschutz</a>
-  </div>
-
 </div>
 
 <!-- ══ MAIN APP ══ -->
@@ -480,12 +413,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
   </div>
 
   <div class="app-header">
-    <div class="app-logo" onclick="showPage('dashboard', document.querySelector('.nav-btn'))" style="cursor:pointer;" title="Dashboard"><span class="app-logo-mark">📂</span> <b>DOKU</b>menten<span><b>ORGA</b>nizer</span></div>
-    <div class="header-nav">
-      <a href="https://vmenle.github.io/DokumentenOrganizer/landing.html" target="_blank">Home</a>
-      <a href="https://vmenle.github.io/DokumentenOrganizer/info.html" target="_blank">Anleitung</a>
-      <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html" target="_blank">AGB</a>
-    </div>
+    <a href="landing.html" class="app-logo" title="Home" style="cursor:pointer;text-decoration:none;"><span class="app-logo-mark">📂</span> <b>DOKU</b>menten<span><b>ORGA</b>nizer</span></a>
     <div class="header-right">
       <div class="status-pill"><div class="status-dot ok" id="appStatusDot"></div><span id="appStatusText">Bereit</span></div>
       <button class="btn btn-ghost btn-sm" onclick="openFolder()" title="Ordner neu verbinden">📁</button>
@@ -501,13 +429,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
       <button class="nav-btn" onclick="showPage('einstellungen',this)"><span class="nav-icon">⚙️</span>Einstellungen</button>
       <div style="margin-top:auto;border-top:1px solid var(--border);padding-top:10px;margin-top:12px;">
         <div class="sidebar-ext-links">
-          <a href="https://vmenle.github.io/DokumentenOrganizer/info.html" class="sidebar-ext-link" target="_blank">📖 Anleitung</a>
-          <a href="https://vmenle.github.io/DokumentenOrganizer/landing.html" class="sidebar-ext-link" target="_blank">🏷 Landingpage</a>
-        </div>
-        <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;">
-          <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html#tab-imp" class="sidebar-ext-link" target="_blank">📋 Impressum</a>
-          <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html" class="sidebar-ext-link" target="_blank">⚖️ AGB</a>
-          <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html#tab-ds" class="sidebar-ext-link" target="_blank">🔒 Datenschutz</a>
+          <a href="info.html" class="sidebar-ext-link" target="_blank">📖 Anleitung</a>
+          <a href="landing.html" class="sidebar-ext-link" target="_blank">🏷 Landingpage</a>
+          <a href="agb.html" class="sidebar-ext-link" target="_blank">⚖️ AGB &amp; Datenschutz</a>
         </div>
       </div>
     </div>
@@ -682,18 +606,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
     </div>
   </div>
 </div>
-
-  <!-- App Footer -->
-  <div class="app-footer">
-    <span>© 2025 VM – Energy and Leisure · Volker Menle · Mögglingen</span>
-    <div class="app-footer-links">
-      <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html#tab-imp" target="_blank">Impressum</a>
-      <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html" target="_blank">AGB</a>
-      <a href="https://vmenle.github.io/DokumentenOrganizer/agb.html#tab-ds" target="_blank">Datenschutz</a>
-      <a href="https://vmenle.github.io/DokumentenOrganizer/info.html" target="_blank">Anleitung</a>
-    </div>
-  </div>
-
 </div>
 
 <script>
