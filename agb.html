@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<!-- DokumentenOrganizer V2 – agb.html -->
+<!-- 2025-06-10 -->
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGB & Datenschutz – DokumentenOrganizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --amber:#d4820a;--amber-light:#f0a530;--amber-bg:rgba(212,130,10,.08);--amber-border:rgba(212,130,10,.22);
+  --navy:#0d1f2d;--navy-mid:#1a3347;
+  --danger:#c0392b;--teal:#2a9d8f;--teal-pale:rgba(42,157,143,.1);
+  --white:#faf8f5;--gray1:#f2ede6;--gray2:#e0d9d0;--gray3:#b0a89e;
+  --text:#1a1410;--text2:#4a403a;
+  --serif:'Instrument Serif',Georgia,serif;--sans:'Outfit',system-ui,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--white);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.8;-webkit-font-smoothing:antialiased;}
+
+.nav{background:rgba(250,248,245,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--gray2);height:60px;padding:0 48px;display:flex;align-items:center;justify-content:space-between;}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);}
+.nav-logo-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--navy),var(--navy-mid));display:flex;align-items:center;justify-content:center;font-size:16px;}
+.nav-logo-text{font-family:var(--serif);font-size:19px;line-height:1;}
+.nav-logo-text span{color:var(--amber);}
+.nav-back{font-size:14px;color:var(--gray3);text-decoration:none;transition:color .15s;}
+.nav-back:hover{color:var(--amber);}
+
+.wrapper{max-width:780px;margin:0 auto;padding:60px 40px 80px;}
+.page-title{font-family:var(--serif);font-size:40px;margin-bottom:8px;}
+.page-meta{font-size:13px;color:var(--gray3);margin-bottom:40px;padding-bottom:24px;border-bottom:1px solid var(--gray2);}
+
+/* Tabs */
+.tabs{display:flex;gap:8px;margin-bottom:40px;}
+.tab-btn{padding:9px 22px;border-radius:8px;border:1.5px solid var(--gray2);font-family:var(--sans);font-size:14px;font-weight:600;cursor:pointer;background:transparent;color:var(--text2);transition:all .15s;}
+.tab-btn.active{background:var(--navy);color:var(--white);border-color:var(--navy);}
+.tab-btn:hover:not(.active){border-color:var(--navy);color:var(--navy);}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+h2{font-family:var(--serif);font-size:26px;margin:40px 0 12px;color:var(--text);}
+h3{font-size:16px;font-weight:700;margin:28px 0 8px;color:var(--text);}
+p{margin-bottom:14px;color:var(--text2);}
+ul,ol{margin:10px 0 14px 20px;color:var(--text2);}
+li{margin-bottom:6px;}
+strong{color:var(--text);}
+
+.warn-box{background:rgba(192,57,43,.06);border:1px solid rgba(192,57,43,.18);border-radius:10px;padding:18px 22px;margin:20px 0;font-size:14px;}
+.warn-box strong{color:var(--danger);}
+.info-box{background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:10px;padding:18px 22px;margin:20px 0;font-size:14px;}
+.info-box strong{color:var(--amber);}
+.neutral-box{background:var(--gray1);border:1px solid var(--gray2);border-radius:10px;padding:18px 22px;margin:20px 0;font-size:14px;color:var(--text2);}
+.contact-box{background:var(--white);border:1px solid var(--gray2);border-radius:12px;padding:22px 26px;margin:20px 0;font-size:14px;line-height:2;}
+hr{border:none;border-top:1px solid var(--gray2);margin:36px 0;}
+
+.footer{border-top:1px solid var(--gray2);padding:20px 48px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--gray3);flex-wrap:wrap;gap:10px;}
+.footer a{color:var(--gray3);text-decoration:none;margin-left:18px;}
+.footer a:hover{color:var(--amber);}
+@media(max-width:600px){.wrapper{padding:40px 20px;}.nav,.footer{padding:0 20px;}.tabs{flex-wrap:wrap;}.footer{flex-direction:column;}}
+
+/* ══ SHARED NAV + FOOTER ══ */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,31,45,.97); backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(42,64,96,.8);
+  height: 64px; padding: 0 48px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+}
+.nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.nav-logo-mark { font-size: 20px; }
+.nav-logo-text { font-family: 'Instrument Serif', serif; font-size: 20px; color: #f0ebe5; }
+.nav-logo-text span { color: #d4820a; }
+.nav-links { display: flex; gap: 28px; align-items: center; }
+.nav-links a { color: #8ba4b8; text-decoration: none; font-size: 14px; font-weight: 500; transition: color .15s; }
+.nav-links a:hover, .nav-links a.active { color: #d4820a; }
+.nav-cta { background: #d4820a; color: #0d1f2d; padding: 9px 20px; border-radius: 9px; font-size: 14px; font-weight: 700; text-decoration: none; transition: all .2s; white-space: nowrap; }
+.nav-cta:hover { background: #f0a530; }
+.site-footer { background: #0d1f2d; border-top: 1px solid rgba(42,64,96,.8); padding: 48px 48px 0; margin-top: 80px; }
+.site-footer-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto; gap: 60px; padding-bottom: 40px; border-bottom: 1px solid rgba(42,64,96,.5); }
+.footer-brand .footer-logo { font-family: 'Instrument Serif', serif; font-size: 20px; color: #f0ebe5; display: block; margin-bottom: 8px; }
+.footer-brand .footer-logo span { color: #d4820a; }
+.footer-brand p { font-size: 13px; color: #4d6a80; line-height: 1.5; max-width: 280px; }
+.footer-links-group { display: flex; gap: 48px; }
+.footer-col { display: flex; flex-direction: column; gap: 8px; }
+.footer-col-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #4d6a80; margin-bottom: 4px; }
+.footer-col a { font-size: 13px; color: #6e8fa8; text-decoration: none; transition: color .15s; }
+.footer-col a:hover { color: #d4820a; }
+.footer-bottom { max-width: 1100px; margin: 0 auto; padding: 16px 0; font-size: 12px; color: #2a4060; }
+@media(max-width:760px) { nav { padding: 0 20px; } .nav-links { display: none; } .site-footer { padding: 40px 20px 0; } .site-footer-inner { grid-template-columns: 1fr; gap: 32px; } .footer-links-group { flex-wrap: wrap; gap: 28px; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <span class="nav-logo-mark">📂</span>
+    <span class="nav-logo-text">Dokument<span>Organizer</span></span>
+  </a>
+  <div class="nav-links">
+    <a href="landing.html">Home</a>
+    <a href="info.html">Anleitung</a>
+    <a href="agb.html">AGB &amp; Datenschutz</a>
+    <a href="index.html">App öffnen</a>
+  </div>
+  <a href="index.html" class="nav-cta">App öffnen →</a>
+</nav>
+
+<div class="wrapper">
+  <div class="page-title">Rechtliche Hinweise</div>
+  <div class="page-meta">Stand: April 2025 · VM – Energy and Leisure · Volker Menle · Mögglingen</div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('agb',this)">AGB</button>
+    <button class="tab-btn" onclick="showTab('ds',this)">Datenschutz</button>
+    <button class="tab-btn" onclick="showTab('imp',this)">Impressum</button>
+  </div>
+
+  <!-- AGB -->
+  <div class="tab-content active" id="tab-agb">
+    <div class="warn-box"><strong>Wichtiger Hinweis:</strong> DokumentenOrganizer befindet sich in der Beta-Phase. Die Software wird ohne Gewährleistung für Richtigkeit, Vollständigkeit oder dauerhafter Verfügbarkeit bereitgestellt. Bitte stets ein Backup deiner Dokumente vorhalten.</div>
+
+    <h2>§ 1 Geltungsbereich</h2>
+    <p>Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für die Nutzung der Software „DokumentenOrganizer", bereitgestellt von VM – Energy and Leisure, Inhaber Volker Menle, Mögglingen (nachfolgend „Anbieter"). Mit der Nutzung der Software erklärt der Nutzer sein Einverständnis mit diesen AGB.</p>
+
+    <h2>§ 2 Leistungsbeschreibung</h2>
+    <p>DokumentenOrganizer ist eine browserbasierte Anwendung zur automatisierten Klassifikation, Umbenennung und Ablage digitaler Dokumente. Die KI-Analyse erfolgt mittels der Google Gemini API (Drittanbieter). Die Software selbst verarbeitet keine Dokumente serverseitig – alle Dateioperationen finden lokal auf dem Endgerät des Nutzers statt.</p>
+    <p>Der Anbieter stellt die Software als Webanwendung zur Verfügung. Ein Anspruch auf ständige Verfügbarkeit oder auf bestimmte Funktionen besteht nicht.</p>
+
+    <h2>§ 3 Beta-Programm</h2>
+    <p>Im Rahmen des Beta-Programms erhalten Teilnehmer für drei (3) Monate ab Lizenzausstellung unentgeltlichen Zugang zur Software.</p>
+    <ul>
+      <li>Das Beta-Programm dient ausschließlich zu Test- und Feedback-Zwecken.</li>
+      <li>Die Beta-Lizenz ist persönlich, nicht übertragbar und nicht kommerziell nutzbar.</li>
+      <li>Der Anbieter kann das Beta-Programm jederzeit und ohne Angabe von Gründen beenden oder den Zugang einzelner Teilnehmer entziehen.</li>
+      <li>Ein Anspruch auf Verlängerung oder Überführung in ein kostenpflichtiges Modell besteht nicht.</li>
+    </ul>
+
+    <h2>§ 4 Voraussetzungen</h2>
+    <p>Für die Nutzung sind erforderlich: Google Chrome oder Microsoft Edge (aktuell), Internetverbindung für die KI-Analyse, gültiger Google Gemini API Key (vom Nutzer selbst einzurichten), kompatibles Endgerät (Windows, Mac, Linux, Chromebook). Der Nutzer ist selbst für die Beschaffung und den Betrieb dieser Voraussetzungen verantwortlich.</p>
+
+    <h2>§ 5 Nutzungsrechte</h2>
+    <p>Der Anbieter räumt dem Nutzer ein einfaches, nicht übertragbares Recht zur privaten Nutzung ein. Untersagt sind: kommerzielle Nutzung ohne ausdrückliche Genehmigung, Kopieren oder Verteilen des Quellcodes, Weitergabe oder Verkauf von Lizenznummern.</p>
+
+    <h2>§ 6 Haftungsausschluss</h2>
+    <div class="warn-box"><strong>Diese Haftungsausschlüsse sind wesentlicher Bestandteil dieser AGB.</strong> Der Nutzer nimmt sie ausdrücklich zur Kenntnis und akzeptiert sie als Voraussetzung zur Nutzung der Software.</div>
+
+    <h3>6.1 Datenverlust</h3>
+    <p>Der Anbieter übernimmt <strong>keinerlei Haftung für Datenverlust</strong>, der durch die Nutzung der Software entstehen kann, einschließlich:</p>
+    <ul>
+      <li>Versehentliches Löschen, Verschieben oder Umbenennen von Dateien durch die Software</li>
+      <li>Fehler bei automatischer Klassifikation oder Verarbeitung</li>
+      <li>Verlust von Daten im lokalen Browserspeicher (localStorage)</li>
+      <li>Datenverlust durch Browser-Updates, Cache-Leerung oder Systemabstürze</li>
+      <li>Fehlfunktionen der Drittanbieter-API (Google Gemini)</li>
+    </ul>
+    <p><strong>Der Nutzer ist ausdrücklich darauf hingewiesen, stets ein vollständiges Backup seiner Dokumente vorzuhalten, bevor er die Software einsetzt.</strong></p>
+
+    <h3>6.2 Fehlerhafte Klassifikation</h3>
+    <p>Die KI-gestützte Klassifikation kann fehlerhaft sein. Der Anbieter haftet nicht für: falsche Kategorisierung, Benennung oder Ablage; steuerrechtliche Konsequenzen durch fehlerhafte Kategorisierung; übersehene oder falsch erkannte Dokumentinhalte; Fehler durch mangelhafte Scan- oder Bildqualität.</p>
+
+    <h3>6.3 Nichtverfügbarkeit und Drittanbieter</h3>
+    <p>Der Anbieter haftet nicht für Ausfälle der Google Gemini API, Browser-Inkompatibilitäten nach Updates oder Ausfälle der Hosting-Infrastruktur (GitHub Pages). Durch Verwendung des Gemini API Keys schließt der Nutzer einen direkten Vertrag mit Google und unterliegt Googles Nutzungsbedingungen.</p>
+
+    <h3>6.4 Haftungsbeschränkung</h3>
+    <p>Die Haftung des Anbieters ist – soweit gesetzlich zulässig – auf Vorsatz und grobe Fahrlässigkeit beschränkt. Bei einfacher Fahrlässigkeit haftet der Anbieter nur bei Verletzung wesentlicher Vertragspflichten und dann nur auf den vertragstypischen, vorhersehbaren Schaden. Die Haftung für mittelbare Schäden, Folgeschäden und Datenverlust ist ausgeschlossen, soweit gesetzlich zulässig.</p>
+
+    <h2>§ 7 Änderungen der AGB</h2>
+    <p>Der Anbieter behält sich vor, diese AGB jederzeit zu ändern. Wesentliche Änderungen werden Beta-Testern per E-Mail mitgeteilt.</p>
+
+    <h2>§ 8 Anwendbares Recht und Gerichtsstand</h2>
+    <p>Es gilt deutsches Recht. Gerichtsstand ist, soweit gesetzlich zulässig, der Sitz des Anbieters in Mögglingen.</p>
+
+    <h2>§ 9 Salvatorische Klausel</h2>
+    <p>Sollten einzelne Bestimmungen unwirksam sein, berührt dies die Wirksamkeit der übrigen Bestimmungen nicht.</p>
+  </div>
+
+  <!-- DATENSCHUTZ -->
+  <div class="tab-content" id="tab-ds">
+    <div class="neutral-box"><strong>Kurzfassung:</strong> DokumentenOrganizer speichert keine Daten auf eigenen Servern. Dokumente verlassen dein Gerät nur für die KI-Analyse an Google Gemini. Alle anderen Daten liegen ausschließlich lokal in deinem Browser. Keine Cookies, kein Tracking.</div>
+
+    <h2>1. Verantwortlicher</h2>
+    <div class="contact-box">
+      <strong>VM – Energy and Leisure</strong><br>
+      Inhaber: Volker Menle<br>
+      Mögglingen, Deutschland<br>
+      E-Mail: info@energy-leisure.de
+    </div>
+
+    <h2>2. Welche Daten werden verarbeitet?</h2>
+
+    <h3>2.1 Lokale Daten (nur auf deinem Gerät)</h3>
+    <p>Folgende Daten werden ausschließlich im lokalen Browserspeicher (localStorage) deines Geräts gespeichert und sind für uns nicht zugänglich:</p>
+    <ul>
+      <li><strong>Lizenznummer</strong> – zur Validierung der Berechtigung</li>
+      <li><strong>Gemini API Key</strong> – dein persönlicher Google-API-Schlüssel</li>
+      <li><strong>Kategorien und Konfiguration</strong> – deine persönliche Einrichtung</li>
+      <li><strong>Warteschlange und Protokoll</strong> – Dateinamen verarbeiteter Dateien (keine Inhalte)</li>
+      <li><strong>Ordnername</strong> – der Name deines gewählten Arbeitsordners</li>
+    </ul>
+
+    <h3>2.2 Daten die Google Gemini erhält</h3>
+    <p>Für die KI-Analyse wird der <strong>Inhalt deiner Dokumente</strong> an die Google Gemini API gesendet. Dies geschieht direkt von deinem Browser an Google – nicht über unsere Server. Google verarbeitet diese Daten gemäß eigenen Datenschutzbestimmungen.</p>
+    <div class="info-box"><strong>Empfehlung:</strong> Keine hochsensiblen Dokumente (Ausweise, Passwörter, medizinische Akten) ohne Kenntnis von Googles Datenschutzpraktiken verarbeiten.</div>
+
+    <h3>2.3 Hosting (GitHub Pages)</h3>
+    <p>Die App wird über GitHub Pages bereitgestellt. GitHub kann technische Zugriffsdaten protokollieren. Siehe <a href="https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" style="color:var(--amber);">GitHub Datenschutzerklärung</a>.</p>
+
+    <h3>2.4 Beta-Bewerbung</h3>
+    <p>Bei einer Beta-Bewerbung werden Name, E-Mail und optionale Angaben per E-Mail an uns übermittelt. Diese Daten dienen ausschließlich der Verwaltung des Beta-Programms und werden nicht an Dritte weitergegeben.</p>
+
+    <h2>3. Rechtsgrundlage (DSGVO)</h2>
+    <ul>
+      <li>Art. 6 Abs. 1 lit. b DSGVO – Vertragserfüllung (Beta-Bewerbungen)</li>
+      <li>Art. 6 Abs. 1 lit. a DSGVO – Einwilligung (optionale Angaben)</li>
+      <li>Art. 6 Abs. 1 lit. f DSGVO – berechtigtes Interesse (technische Bereitstellung)</li>
+    </ul>
+
+    <h2>4. Datenweitergabe</h2>
+    <p>Keine Weitergabe an Dritte außer: <strong>Google LLC</strong> (Dokumenteninhalte für KI-Analyse) und <strong>GitHub Inc.</strong> (technische Zugriffsdaten durch Hosting).</p>
+
+    <h2>5. Speicherdauer</h2>
+    <p>Lokale Browserdaten bleiben gespeichert bis du sie aktiv löschst (Einstellungen → Lizenz entfernen → alle Daten löschen). Beta-Bewerbungs-E-Mails werden nach Abschluss des Beta-Programms oder auf Anfrage gelöscht.</p>
+
+    <h2>6. Deine Rechte</h2>
+    <p>Du hast das Recht auf Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung (Art. 18), Widerspruch (Art. 21) und Beschwerde bei der zuständigen Datenschutzbehörde (LfDI Baden-Württemberg). Kontakt: info@energy-leisure.de</p>
+
+    <h2>7. Cookies und Tracking</h2>
+    <p>DokumentenOrganizer setzt <strong>keine Cookies</strong> und verwendet <strong>kein Tracking</strong>, keine Analyse-Tools und keine Werbenetzwerke.</p>
+  </div>
+
+  <!-- IMPRESSUM -->
+  <div class="tab-content" id="tab-imp">
+    <h2>Angaben gemäß § 5 TMG</h2>
+    <div class="contact-box">
+      <strong>VM – Energy and Leisure</strong><br>
+      Inhaber: Volker Menle<br>
+      Mögglingen, Deutschland<br><br>
+      <strong>Kontakt:</strong><br>
+      E-Mail: info@energy-leisure.de<br>
+      Website: energy-leisure.de
+    </div>
+
+    <h2>Verantwortlich für den Inhalt (§ 55 Abs. 2 RStV)</h2>
+    <p>Volker Menle, Mögglingen</p>
+
+    <h2>Haftung für Inhalte</h2>
+    <p>Die Inhalte wurden mit größter Sorgfalt erstellt. Für Richtigkeit, Vollständigkeit und Aktualität übernehmen wir jedoch keine Gewähr.</p>
+
+    <h2>Haftung für Links</h2>
+    <p>Für Inhalte verlinkter Seiten ist stets der jeweilige Anbieter verantwortlich. Rechtswidrige Inhalte waren zum Zeitpunkt der Verlinkung nicht erkennbar.</p>
+
+    <h2>Streitschlichtung</h2>
+    <p>Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen. EU-Plattform: <a href="https://ec.europa.eu/consumers/odr" target="_blank" style="color:var(--amber);">ec.europa.eu/consumers/odr</a></p>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="footer-brand">
+      <span class="footer-logo">📂 Dokument<span>Organizer</span></span>
+      <p>KI-gestützte Dokumentenverwaltung · Privat &amp; Sicher</p>
+    </div>
+    <div class="footer-links-group">
+      <div class="footer-col">
+        <div class="footer-col-title">App</div>
+        <a href="index.html">App öffnen</a>
+        <a href="info.html">Anleitung &amp; FAQ</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Rechtliches</div>
+        <a href="agb.html">Impressum</a>
+        <a href="agb.html">AGB</a>
+        <a href="agb.html">Datenschutz</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Beta</div>
+        <a href="landing.html">Beta-Tester werden</a>
+        <a href="landing.html#beta">Jetzt bewerben</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    © 2025 VM – Energy and Leisure · Volker Menle · Mögglingen
+  </div>
+</footer>
+
+<script>
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

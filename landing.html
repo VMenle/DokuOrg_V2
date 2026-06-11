@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<!-- DokumentenOrganizer V2 – landing.html -->
+<!-- 2025-06-10 -->
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DokumentenOrganizer – KI-Dokumentenverwaltung · Beta-Tester gesucht</title>
+<meta name="description" content="Dein Papierkram automatisch sortiert. DokumentenOrganizer liest, benennt um und legt Dokumente per KI ab. Jetzt als Beta-Tester bewerben – 3 Monate kostenlos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --amber:#d4820a;--amber-light:#f0a530;--amber-bg:rgba(212,130,10,.08);--amber-border:rgba(212,130,10,.22);
+  --navy:#0d1f2d;--navy-mid:#1a3347;--navy-light:#254460;
+  --teal:#2a9d8f;--teal-pale:rgba(42,157,143,.1);
+  --danger:#c0392b;
+  --white:#faf8f5;--gray1:#f2ede6;--gray2:#e0d9d0;--gray3:#b0a89e;--gray4:#6e6560;
+  --text:#1a1410;--text2:#4a403a;
+  --serif:'Instrument Serif',Georgia,serif;
+  --sans:'Outfit',system-ui,sans-serif;
+  --mono:'DM Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--white);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased;}
+a{color:inherit;}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:200;background:rgba(250,248,245,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--gray2);height:64px;padding:0 48px;display:flex;align-items:center;justify-content:space-between;}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);}
+.nav-logo-mark{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--navy),var(--navy-mid));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 2px 8px rgba(13,31,45,.25);}
+.nav-logo-text{font-family:var(--serif);font-size:20px;line-height:1;}
+.nav-logo-text span{color:var(--amber);}
+.nav-links{display:flex;align-items:center;gap:32px;}
+.nav-links a{color:var(--text2);text-decoration:none;font-size:14px;font-weight:500;transition:color .15s;}
+.nav-links a:hover{color:var(--amber);}
+.nav-btn{background:var(--navy);color:var(--white);padding:9px 20px;border-radius:9px;font-size:14px;font-weight:700;text-decoration:none;transition:all .2s;white-space:nowrap;}
+.nav-btn:hover{background:var(--amber);}
+
+/* HERO */
+.hero{min-height:92vh;display:flex;align-items:center;padding:80px 48px;position:relative;overflow:hidden;background:linear-gradient(160deg,var(--navy) 0%,var(--navy-mid) 55%,#1a3a52 100%);}
+.hero::after{content:'';position:absolute;pointer-events:none;right:-200px;top:-200px;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(212,130,10,.12) 0%,transparent 70%);z-index:0;}
+.hero-inner{max-width:1140px;margin:0 auto;width:100%;display:grid;grid-template-columns:1fr 460px;gap:64px;align-items:center;position:relative;z-index:1;}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--amber-bg);border:1px solid var(--amber-border);color:#f0a530;padding:5px 14px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:24px;}
+.hero-eyebrow::before{content:'●';font-size:7px;}
+.hero h1{font-family:var(--serif);font-size:clamp(38px,4.5vw,62px);line-height:1.08;letter-spacing:-.02em;color:#f5f0eb;margin-bottom:22px;}
+.hero h1 em{color:#f0a530;font-style:italic;}
+.hero-sub{font-size:17px;color:rgba(245,240,235,.6);margin-bottom:40px;line-height:1.7;max-width:500px;}
+.hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:44px;}
+.btn-primary{background:var(--amber);color:var(--navy);padding:14px 28px;border-radius:10px;border:none;font-family:var(--sans);font-size:15px;font-weight:800;text-decoration:none;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(212,130,10,.35);}
+.btn-primary:hover{background:var(--amber-light);transform:translateY(-2px);}
+.btn-secondary{background:rgba(245,240,235,.08);border:1px solid rgba(245,240,235,.2);color:rgba(245,240,235,.8);padding:14px 24px;border-radius:10px;font-family:var(--sans);font-size:15px;font-weight:600;text-decoration:none;transition:all .15s;display:inline-flex;align-items:center;gap:8px;}
+.btn-secondary:hover{background:rgba(245,240,235,.14);border-color:rgba(245,240,235,.4);}
+.trust{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+.trust-item{display:flex;align-items:center;gap:7px;font-size:13px;color:rgba(245,240,235,.45);}
+.trust-dot{width:5px;height:5px;border-radius:50%;background:var(--teal);flex-shrink:0;}
+
+.hero-card{background:rgba(245,240,235,.04);border:1px solid rgba(245,240,235,.1);border-radius:20px;padding:28px;backdrop-filter:blur(4px);}
+.hero-card-label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(245,240,235,.35);margin-bottom:20px;}
+.flow-item{display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:1px solid rgba(245,240,235,.07);}
+.flow-item:last-child{border-bottom:none;}
+.flow-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.fi1{background:rgba(212,130,10,.15);}
+.fi2{background:rgba(42,157,143,.15);}
+.fi3{background:rgba(212,130,10,.12);}
+.fi4{background:rgba(245,240,235,.08);}
+.flow-title{font-size:14px;font-weight:600;color:rgba(245,240,235,.9);margin-bottom:2px;}
+.flow-desc{font-size:12px;color:rgba(245,240,235,.45);line-height:1.4;}
+.auto-pill{display:inline-flex;padding:1px 7px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.05em;margin-left:6px;background:rgba(42,157,143,.2);color:#4ecdc4;vertical-align:middle;}
+
+/* SECTIONS */
+.section{padding:88px 48px;}
+.section-inner{max-width:1140px;margin:0 auto;}
+.section-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-bottom:10px;}
+.section-title{font-family:var(--serif);font-size:clamp(28px,3.5vw,46px);line-height:1.12;margin-bottom:14px;}
+.section-sub{color:var(--text2);font-size:16px;max-width:540px;margin-bottom:52px;}
+
+/* HOW */
+.how-bg{background:var(--gray1);border-top:1px solid var(--gray2);border-bottom:1px solid var(--gray2);}
+.how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+.how-card{background:var(--white);border:1px solid var(--gray2);border-radius:16px;padding:28px 24px;position:relative;overflow:hidden;transition:box-shadow .2s,border-color .2s;}
+.how-card:hover{border-color:var(--amber-border);box-shadow:0 4px 24px rgba(13,31,45,.12);}
+.how-card::after{content:attr(data-n);position:absolute;right:18px;top:12px;font-family:var(--serif);font-size:72px;line-height:1;color:rgba(212,130,10,.07);pointer-events:none;}
+.how-icon{font-size:32px;margin-bottom:14px;display:block;}
+.how-title{font-weight:700;font-size:16px;margin-bottom:8px;}
+.how-desc{font-size:13px;color:var(--text2);line-height:1.65;}
+
+/* REQUIREMENTS */
+.req-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;}
+.req-card{background:var(--white);border:1px solid var(--gray2);border-radius:14px;padding:20px 22px;transition:border-color .15s;}
+.req-card:hover{border-color:var(--amber-border);}
+.req-icon{font-size:26px;margin-bottom:10px;display:block;}
+.req-title{font-weight:700;font-size:14px;margin-bottom:5px;}
+.req-desc{font-size:13px;color:var(--text2);line-height:1.55;margin-bottom:10px;}
+.pill{display:inline-flex;padding:2px 9px;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.04em;}
+.pill-req{background:rgba(192,57,43,.08);color:var(--danger);}
+.pill-free{background:var(--teal-pale);color:var(--teal);}
+.pill-opt{background:var(--amber-bg);color:var(--amber);}
+
+/* BETA */
+.beta-bg{background:var(--navy);padding:88px 48px;}
+.beta-inner{max-width:1140px;margin:0 auto;display:grid;grid-template-columns:1fr 480px;gap:80px;align-items:start;}
+.beta-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#f0a530;margin-bottom:10px;}
+.beta-title{font-family:var(--serif);font-size:clamp(28px,3.5vw,46px);line-height:1.12;color:var(--white);margin-bottom:14px;}
+.beta-sub{color:rgba(250,248,245,.5);font-size:16px;margin-bottom:36px;}
+
+.counter-box{background:rgba(212,130,10,.1);border:1px solid var(--amber-border);border-radius:14px;padding:20px 22px;margin-bottom:30px;display:flex;align-items:center;gap:16px;}
+.counter-num{font-family:var(--serif);font-size:52px;line-height:1;color:#f0a530;flex-shrink:0;min-width:64px;}
+.counter-label{font-size:14px;color:rgba(250,248,245,.55);line-height:1.5;}
+.counter-label strong{color:rgba(250,248,245,.9);display:block;font-size:15px;margin-bottom:3px;}
+.counter-bar-wrap{height:4px;background:rgba(212,130,10,.15);border-radius:2px;margin-top:10px;}
+.counter-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--amber),var(--amber-light));transition:width .6s ease;}
+
+.perks{display:flex;flex-direction:column;gap:14px;margin-bottom:28px;}
+.perk{display:flex;align-items:flex-start;gap:12px;}
+.perk-icon{font-size:18px;flex-shrink:0;margin-top:2px;}
+.perk-text{font-size:14px;color:rgba(250,248,245,.65);line-height:1.55;}
+.perk-text strong{color:rgba(250,248,245,.9);}
+.beta-note{font-size:12px;color:rgba(250,248,245,.3);line-height:1.6;}
+.beta-note a{color:rgba(250,248,245,.4);}
+
+.form-card{background:rgba(250,248,245,.04);border:1px solid rgba(250,248,245,.1);border-radius:20px;padding:34px;backdrop-filter:blur(4px);}
+.form-title{font-family:var(--serif);font-size:26px;color:var(--white);margin-bottom:4px;}
+.form-sub{font-size:13px;color:rgba(250,248,245,.4);margin-bottom:26px;}
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.fg label{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:rgba(250,248,245,.4);}
+.fg input,.fg select,.fg textarea{background:rgba(250,248,245,.06);border:1px solid rgba(250,248,245,.12);border-radius:8px;padding:10px 13px;color:var(--white);font-family:var(--sans);font-size:14px;outline:none;transition:border-color .15s;width:100%;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--amber);}
+.fg input::placeholder,.fg textarea::placeholder{color:rgba(250,248,245,.25);}
+.fg textarea{resize:vertical;min-height:80px;}
+.fg select option{background:var(--navy-mid);color:var(--white);}
+.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.cb-wrap{display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;}
+.cb-wrap input[type=checkbox]{width:15px;height:15px;accent-color:var(--amber);flex-shrink:0;margin-top:3px;cursor:pointer;}
+.cb-wrap label{font-size:12px;color:rgba(250,248,245,.4);cursor:pointer;line-height:1.5;}
+.cb-wrap label a{color:rgba(250,248,245,.55);}
+.btn-submit{width:100%;padding:14px;border-radius:10px;border:none;background:var(--amber);color:var(--navy);font-family:var(--sans);font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 20px rgba(212,130,10,.3);}
+.btn-submit:hover{background:var(--amber-light);transform:translateY(-1px);}
+.btn-submit:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.form-error{margin-top:10px;font-size:12px;color:#f87171;display:none;}
+.form-success{text-align:center;padding:28px 20px;display:none;}
+.form-success .fs-icon{font-size:44px;margin-bottom:12px;}
+.form-success h3{font-family:var(--serif);font-size:22px;color:var(--white);margin-bottom:6px;}
+.form-success p{font-size:13px;color:rgba(250,248,245,.5);}
+
+/* Honeypot – für Menschen unsichtbar */
+.hp-field{position:absolute;left:-9999px;top:-9999px;opacity:0;height:0;width:0;overflow:hidden;}
+
+/* FOOTER */
+.footer{background:var(--navy);border-top:1px solid rgba(250,248,245,.06);padding:20px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.footer-brand{font-family:var(--serif);font-size:15px;color:rgba(250,248,245,.35);}
+.footer-brand span{color:var(--amber);}
+.footer-links{display:flex;gap:20px;flex-wrap:wrap;}
+.footer-links a{font-size:13px;color:rgba(250,248,245,.3);text-decoration:none;transition:color .15s;}
+.footer-links a:hover{color:#f0a530;}
+
+/* RESPONSIVE */
+@media(max-width:960px){
+  .nav{padding:0 24px;}
+  .nav-links{display:none;}
+  .hero{padding:64px 24px;}
+  .hero-inner{grid-template-columns:1fr;gap:48px;}
+  .section{padding:64px 24px;}
+  .how-grid{grid-template-columns:1fr;}
+  .beta-bg{padding:64px 24px;}
+  .beta-inner{grid-template-columns:1fr;gap:40px;}
+  .fg-row{grid-template-columns:1fr;}
+  .footer{padding:20px 24px;flex-direction:column;text-align:center;}
+}
+
+/* ══ SHARED NAV + FOOTER ══ */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,31,45,.97); backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(42,64,96,.8);
+  height: 64px; padding: 0 48px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+}
+.nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.nav-logo-mark { font-size: 20px; }
+.nav-logo-text { font-family: 'Instrument Serif', serif; font-size: 20px; color: #f0ebe5; }
+.nav-logo-text span { color: #d4820a; }
+.nav-links { display: flex; gap: 28px; align-items: center; }
+.nav-links a { color: #8ba4b8; text-decoration: none; font-size: 14px; font-weight: 500; transition: color .15s; }
+.nav-links a:hover, .nav-links a.active { color: #d4820a; }
+.nav-cta { background: #d4820a; color: #0d1f2d; padding: 9px 20px; border-radius: 9px; font-size: 14px; font-weight: 700; text-decoration: none; transition: all .2s; white-space: nowrap; }
+.nav-cta:hover { background: #f0a530; }
+.site-footer { background: #0d1f2d; border-top: 1px solid rgba(42,64,96,.8); padding: 48px 48px 0; margin-top: 80px; }
+.site-footer-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto; gap: 60px; padding-bottom: 40px; border-bottom: 1px solid rgba(42,64,96,.5); }
+.footer-brand .footer-logo { font-family: 'Instrument Serif', serif; font-size: 20px; color: #f0ebe5; display: block; margin-bottom: 8px; }
+.footer-brand .footer-logo span { color: #d4820a; }
+.footer-brand p { font-size: 13px; color: #4d6a80; line-height: 1.5; max-width: 280px; }
+.footer-links-group { display: flex; gap: 48px; }
+.footer-col { display: flex; flex-direction: column; gap: 8px; }
+.footer-col-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #4d6a80; margin-bottom: 4px; }
+.footer-col a { font-size: 13px; color: #6e8fa8; text-decoration: none; transition: color .15s; }
+.footer-col a:hover { color: #d4820a; }
+.footer-bottom { max-width: 1100px; margin: 0 auto; padding: 16px 0; font-size: 12px; color: #2a4060; }
+@media(max-width:760px) { nav { padding: 0 20px; } .nav-links { display: none; } .site-footer { padding: 40px 20px 0; } .site-footer-inner { grid-template-columns: 1fr; gap: 32px; } .footer-links-group { flex-wrap: wrap; gap: 28px; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <span class="nav-logo-mark">📂</span>
+    <span class="nav-logo-text">Dokument<span>Organizer</span></span>
+  </a>
+  <div class="nav-links">
+    <a href="landing.html">Home</a>
+    <a href="info.html">Anleitung</a>
+    <a href="agb.html">AGB &amp; Datenschutz</a>
+    <a href="index.html">App öffnen</a>
+  </div>
+  <a href="index.html" class="nav-cta">App öffnen →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-eyebrow">Beta · Limitierte Plätze</div>
+      <h1>Dein Papierkram.<br><em>Automatisch</em> sortiert.</h1>
+      <p class="hero-sub">DokumentenOrganizer liest deine Rechnungen, Verträge und Belege per KI, benennt sie einheitlich um und legt sie direkt auf deinem Gerät in die richtigen Ordner – ohne Cloud-Zwang, ohne Server.</p>
+      <div class="hero-actions">
+        <a href="#beta" class="btn-primary">🧪 Beta-Tester werden</a>
+        <a href="info.html" class="btn-secondary">Mehr erfahren →</a>
+      </div>
+      <div class="trust">
+        <div class="trust-item"><div class="trust-dot"></div>3 Monate kostenlos</div>
+        <div class="trust-item"><div class="trust-dot"></div>Dokumente bleiben lokal</div>
+        <div class="trust-item"><div class="trust-dot"></div>Nur Chrome / Edge</div>
+      </div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-card-label">So läuft es ab</div>
+      <div class="flow-item"><div class="flow-icon fi1">📥</div><div><div class="flow-title">Dokument in Eingang legen</div><div class="flow-desc">PDF oder Foto in den _Eingang-Ordner</div></div></div>
+      <div class="flow-item"><div class="flow-icon fi2">🤖</div><div><div class="flow-title">KI analysiert <span class="auto-pill">AUTO</span></div><div class="flow-desc">Gemini erkennt Typ, Datum, Kategorie</div></div></div>
+      <div class="flow-item"><div class="flow-icon fi3">✏️</div><div><div class="flow-title">Einheitlicher Name <span class="auto-pill">AUTO</span></div><div class="flow-desc">20240315_Versicherungen_KFZ_Rechnung.pdf</div></div></div>
+      <div class="flow-item"><div class="flow-icon fi4">📁</div><div><div class="flow-title">In Ordner ablegen <span class="auto-pill">AUTO</span></div><div class="flow-desc">Steuerbelege werden automatisch doppelt abgelegt</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW -->
+<section class="section how-bg" id="wie">
+  <div class="section-inner">
+    <div class="section-label">Funktionsweise</div>
+    <div class="section-title">Einmal einrichten, dann automatisch</div>
+    <div class="section-sub">Keine Installation, kein Cloud-Account, kein Abo.</div>
+    <div class="how-grid">
+      <div class="how-card" data-n="1"><span class="how-icon">🗂</span><div class="how-title">Du legst Kategorien fest</div><div class="how-desc">Versicherungen, Arbeit, Wohnen, Steuer – du bestimmst die Struktur. Die KI ordnet nur bekannten Kategorien zu und erfindet keine neuen.</div></div>
+      <div class="how-card" data-n="2"><span class="how-icon">🧠</span><div class="how-title">KI liest den Inhalt</div><div class="how-desc">Gemini analysiert PDFs und Fotos, erkennt Dokumenttyp, Datum, Absender und Steuerrelevanz – vollständig automatisch.</div></div>
+      <div class="how-card" data-n="3"><span class="how-icon">✅</span><div class="how-title">Du behältst die Kontrolle</div><div class="how-desc">Unsichere Dokumente landen in einer Warteschlange. Du entscheidest mit KI-Vorschlägen. Kein Datenverlust möglich.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- REQUIREMENTS -->
+<section class="section" id="voraussetzungen">
+  <div class="section-inner">
+    <div class="section-label">Voraussetzungen</div>
+    <div class="section-title">Was du brauchst</div>
+    <div class="section-sub">Keine Installation – die App läuft direkt im Browser.</div>
+    <div class="req-grid">
+      <div class="req-card"><span class="req-icon">🌐</span><div class="req-title">Browser</div><div class="req-desc">Google Chrome oder Microsoft Edge. Firefox und Safari werden nicht unterstützt.</div><span class="pill pill-req">Pflicht</span></div>
+      <div class="req-card"><span class="req-icon">💻</span><div class="req-title">Gerät</div><div class="req-desc">Windows, Mac, Linux oder Chromebook. iOS und Android nicht vollständig kompatibel.</div><span class="pill pill-req">Pflicht</span></div>
+      <div class="req-card"><span class="req-icon">🔑</span><div class="req-title">Gemini API Key</div><div class="req-desc">Kostenloser API Key von Google AI Studio. Einmalige Einrichtung, 2 Minuten. 1.500 Analysen/Tag inklusive.</div><span class="pill pill-free">Kostenlos</span></div>
+      <div class="req-card"><span class="req-icon">📡</span><div class="req-title">Internet</div><div class="req-desc">Nur für die KI-Analyse nötig. Alle anderen Funktionen funktionieren offline.</div><span class="pill pill-req">Für KI-Analyse</span></div>
+      <div class="req-card"><span class="req-icon">☁️</span><div class="req-title">Cloud-Sync (optional)</div><div class="req-desc">Google Drive, OneDrive oder Dropbox Desktop-App als Arbeitsordner – dann automatische Sicherung.</div><span class="pill pill-opt">Empfohlen</span></div>
+      <div class="req-card"><span class="req-icon">📄</span><div class="req-title">Dateiformate</div><div class="req-desc">PDF, JPG, PNG, WEBP, GIF, HEIC. Maximale Dateigröße 15 MB pro Dokument.</div><span class="pill pill-req">Unterstützt</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- BETA -->
+<section class="beta-bg" id="beta">
+  <div class="beta-inner">
+    <div>
+      <div class="beta-label">Beta-Programm</div>
+      <div class="beta-title">Werde Beta-Tester</div>
+      <div class="beta-sub">Wir suchen Menschen mit echtem Papierkram-Problem. Dein Feedback formt das Produkt direkt.</div>
+
+      <div class="counter-box">
+        <div class="counter-num" id="spotsNum">–</div>
+        <div style="flex:1;">
+          <div class="counter-label"><strong id="spotsTitle">Lade...</strong>Plätze noch verfügbar von 50</div>
+          <div class="counter-bar-wrap"><div class="counter-bar" id="counterBar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <div class="perks">
+        <div class="perk"><div class="perk-icon">🎁</div><div class="perk-text"><strong>3 Monate kostenlos</strong> – vollständige Lizenz, keine Einschränkungen, keine Kreditkarte.</div></div>
+        <div class="perk"><div class="perk-icon">🗣</div><div class="perk-text"><strong>Direkter Draht</strong> – dein Feedback fließt direkt in die Weiterentwicklung ein.</div></div>
+        <div class="perk"><div class="perk-icon">💰</div><div class="perk-text"><strong>Dauerhaft vergünstigter Preis</strong> – Beta-Tester erhalten nach dem Testzeitraum einen reduzierten Folgepreis.</div></div>
+        <div class="perk"><div class="perk-icon">🔒</div><div class="perk-text"><strong>Deine Daten gehören dir</strong> – wir sehen nicht was du verarbeitest. Keine Telemetrie.</div></div>
+      </div>
+      <div class="beta-note">Beta-Software. Bitte keine kritischen Dokumente ohne Backup verarbeiten. Vollständige Hinweise in den <a href="agb.html">AGB</a> und der <a href="agb.html">Datenschutzerklärung</a>.</div>
+    </div>
+
+    <div>
+      <div class="form-card">
+        <div class="form-title">Jetzt bewerben</div>
+        <div class="form-sub">Wir melden uns in 2–3 Werktagen mit deiner Lizenz.</div>
+        <div id="betaForm">
+          <div class="fg-row">
+            <div class="fg"><label>Vorname *</label><input type="text" id="f-vorname" placeholder="Max" autocomplete="given-name" maxlength="50"></div>
+            <div class="fg"><label>Nachname *</label><input type="text" id="f-nachname" placeholder="Mustermann" autocomplete="family-name" maxlength="50"></div>
+          </div>
+          <div class="fg"><label>E-Mail *</label><input type="email" id="f-email" placeholder="max@beispiel.de" autocomplete="email" maxlength="100"></div>
+          <div class="fg"><label>Betriebssystem</label><select id="f-os"><option value="">– bitte wählen –</option><option>Windows</option><option>Mac</option><option>Chromebook</option><option>Linux</option></select></div>
+          <div class="fg"><label>Dokumente pro Monat (ca.)</label><select id="f-vol"><option value="">– bitte wählen –</option><option>Weniger als 20</option><option>20 – 50</option><option>50 – 100</option><option>Mehr als 100</option></select></div>
+          <div class="fg"><label>Was erhoffst du dir? (optional)</label><textarea id="f-msg" placeholder="z.B. Ich möchte endlich Ordnung in meinen Belegen..." maxlength="1000"></textarea></div>
+          <div class="cb-wrap"><input type="checkbox" id="f-agb"><label for="f-agb">Ich habe die <a href="agb.html" target="_blank">AGB</a> und die <a href="agb.html" target="_blank">Datenschutzerklärung</a> gelesen und stimme zu. *</label></div>
+
+          <!-- Honeypot: unsichtbar für Menschen, Bots füllen es aus -->
+          <div class="hp-field" aria-hidden="true">
+            <label for="f-website">Website leer lassen</label>
+            <input type="text" id="f-website" name="website" tabindex="-1" autocomplete="off">
+          </div>
+
+          <button class="btn-submit" id="submitBtn" onclick="submitBeta()">🚀 Bewerbung absenden</button>
+          <div class="form-error" id="formErr"></div>
+        </div>
+        <div class="form-success" id="formOk">
+          <div class="fs-icon">✅</div>
+          <h3>Bewerbung eingegangen!</h3>
+          <p>Wir melden uns in Kürze mit deiner Lizenznummer und einem Einrichtungsguide per E-Mail.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="footer-brand">
+      <span class="footer-logo">📂 Dokument<span>Organizer</span></span>
+      <p>KI-gestützte Dokumentenverwaltung · Privat &amp; Sicher</p>
+    </div>
+    <div class="footer-links-group">
+      <div class="footer-col">
+        <div class="footer-col-title">App</div>
+        <a href="index.html">App öffnen</a>
+        <a href="info.html">Anleitung &amp; FAQ</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Rechtliches</div>
+        <a href="agb.html">Impressum</a>
+        <a href="agb.html">AGB</a>
+        <a href="agb.html">Datenschutz</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Beta</div>
+        <a href="landing.html">Beta-Tester werden</a>
+        <a href="landing.html#beta">Jetzt bewerben</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    © 2025 VM – Energy and Leisure · Volker Menle · Mögglingen
+  </div>
+</footer>
+
+<script>
+// DokumentenOrganizer V2 – landing.html
+// 2025-06-10
+
+var BETA_SIGNUP_URL = 'https://qvvsuksdribtjkplaynu.supabase.co/functions/v1/beta-signup';
+var TOTAL = 50;
+
+// ── COUNTER: lädt echten Stand aus Supabase ───────────────────
+// Anon-Key nur für Lesen des Counters aus admin_config.
+// RLS auf admin_config hat keine Anon-Policy → wir laden
+// den Counter direkt über die beta-signup Edge Function
+// mit einer GET-Anfrage (kein Schreiben möglich).
+var _spotsCache = null;
+
+async function loadCounter() {
+  try {
+    var res = await fetch(BETA_SIGNUP_URL + '?action=counter', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (res.ok) {
+      var data = await res.json();
+      if (typeof data.free === 'number') {
+        _spotsCache = data.free;
+        renderCounter(data.free, data.used, data.total);
+        return;
+      }
+    }
+  } catch(e) {}
+  // Fallback: Platzhalter anzeigen
+  renderCounter(null, null, TOTAL);
+}
+
+function renderCounter(free, used, total) {
+  var numEl  = document.getElementById('spotsNum');
+  var titEl  = document.getElementById('spotsTitle');
+  var barEl  = document.getElementById('counterBar');
+  var btnEl  = document.getElementById('submitBtn');
+
+  if (free === null) {
+    if (numEl) numEl.textContent = '?';
+    if (titEl) titEl.textContent = '';
+    return;
+  }
+
+  if (numEl) numEl.textContent = free;
+  if (titEl) {
+    if (free === 0) {
+      titEl.textContent = 'Alle Plätze vergeben – ';
+      if (btnEl) { btnEl.disabled = true; btnEl.textContent = '✗ Alle Plätze vergeben'; }
+    } else if (free <= 5) {
+      titEl.textContent = 'Nur noch ' + free + ' ';
+    } else {
+      titEl.textContent = free + ' ';
+    }
+  }
+  if (barEl && total > 0) {
+    var pct = Math.min(100, Math.round(((total - free) / total) * 100));
+    barEl.style.width = pct + '%';
+  }
+}
+
+loadCounter();
+
+// ── FORM ─────────────────────────────────────────────────────
+var _submitting = false;
+
+async function submitBeta() {
+  if (_submitting) return;
+
+  var vorname  = trim(val('f-vorname'));
+  var nachname = trim(val('f-nachname'));
+  var email    = trim(val('f-email'));
+  var agb      = document.getElementById('f-agb').checked;
+  var honeypot = trim(val('f-website'));
+
+  // Client-seitige Validierung
+  if (!vorname)  { showErr('Bitte Vornamen eingeben.'); return; }
+  if (!nachname) { showErr('Bitte Nachnamen eingeben.'); return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showErr('Bitte gültige E-Mail-Adresse eingeben.'); return;
+  }
+  if (!agb) { showErr('Bitte AGB und Datenschutzerklärung akzeptieren.'); return; }
+
+  // Client-seitiger Honeypot-Check (zweite Linie hinter Server)
+  if (honeypot) return;
+
+  var os  = trim(val('f-os'))  || '';
+  var vol = trim(val('f-vol')) || '';
+  var msg = trim(val('f-msg')) || '';
+
+  _submitting = true;
+  document.getElementById('formErr').style.display = 'none';
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = '⏳ Wird gesendet...';
+
+  try {
+    var res = await fetch(BETA_SIGNUP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vorname:  vorname,
+        nachname: nachname,
+        email:    email,
+        os:       os,
+        volumen:  vol,
+        message:  msg,
+        website:  honeypot  // Honeypot-Wert mitschicken (leer bei echten Nutzern)
+      })
+    });
+
+    var data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || 'Unbekannter Fehler');
+    }
+
+    // Erfolg
+    document.getElementById('betaForm').style.display = 'none';
+    document.getElementById('formOk').style.display   = 'block';
+    // Counter neu laden
+    loadCounter();
+
+  } catch(e) {
+    showErr(e.message || 'Fehler beim Senden – bitte später nochmal versuchen.');
+  } finally {
+    _submitting = false;
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('submitBtn').textContent = '🚀 Bewerbung absenden';
+  }
+}
+
+function showErr(msg) {
+  var el = document.getElementById('formErr');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function val(id)  { try { return document.getElementById(id).value; } catch(e) { return ''; } }
+function trim(s)  { return (s || '').trim(); }
+</script>
+</body>
+</html>
