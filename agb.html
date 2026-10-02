@@ -8,6 +8,7 @@
 <title>AGB & Datenschutz – DokumentenOrganizer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
 <style>
 :root{
   --amber:#d4820a;--amber-light:#f0a530;--amber-bg:rgba(212,130,10,.08);--amber-border:rgba(212,130,10,.22);
@@ -20,14 +21,6 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
 body{background:var(--white);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.8;-webkit-font-smoothing:antialiased;}
-
-.nav{background:rgba(250,248,245,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--gray2);height:60px;padding:0 48px;display:flex;align-items:center;justify-content:space-between;}
-.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);}
-.nav-logo-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--navy),var(--navy-mid));display:flex;align-items:center;justify-content:center;font-size:16px;}
-.nav-logo-text{font-family:var(--serif);font-size:19px;line-height:1;}
-.nav-logo-text span{color:var(--amber);}
-.nav-back{font-size:14px;color:var(--gray3);text-decoration:none;transition:color .15s;}
-.nav-back:hover{color:var(--amber);}
 
 .wrapper{max-width:780px;margin:0 auto;padding:60px 40px 80px;}
 .page-title{font-family:var(--serif);font-size:40px;margin-bottom:8px;}
@@ -59,37 +52,7 @@ hr{border:none;border-top:1px solid var(--gray2);margin:36px 0;}
 .footer{border-top:1px solid var(--gray2);padding:20px 48px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--gray3);flex-wrap:wrap;gap:10px;}
 .footer a{color:var(--gray3);text-decoration:none;margin-left:18px;}
 .footer a:hover{color:var(--amber);}
-@media(max-width:600px){.wrapper{padding:40px 20px;}.nav,.footer{padding:0 20px;}.tabs{flex-wrap:wrap;}.footer{flex-direction:column;}}
-
-/* ══ SHARED NAV + FOOTER ══ */
-nav {
-  position: sticky; top: 0; z-index: 100;
-  background: rgba(13,31,45,.97); backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(42,64,96,.8);
-  height: 64px; padding: 0 48px;
-  display: flex; align-items: center; justify-content: space-between; gap: 24px;
-}
-.nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-.nav-logo-mark { font-size: 20px; }
-.nav-logo-text { font-family: 'Instrument Serif', serif; font-size: 20px; color: #f0ebe5; }
-.nav-logo-text span { color: #d4820a; }
-.nav-links { display: flex; gap: 28px; align-items: center; }
-.nav-links a { color: #8ba4b8; text-decoration: none; font-size: 14px; font-weight: 500; transition: color .15s; }
-.nav-links a:hover, .nav-links a.active { color: #d4820a; }
-.nav-cta { background: #d4820a; color: #0d1f2d; padding: 9px 20px; border-radius: 9px; font-size: 14px; font-weight: 700; text-decoration: none; transition: all .2s; white-space: nowrap; }
-.nav-cta:hover { background: #f0a530; }
-.site-footer { background: #0d1f2d; border-top: 1px solid rgba(42,64,96,.8); padding: 48px 48px 0; margin-top: 80px; }
-.site-footer-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto; gap: 60px; padding-bottom: 40px; border-bottom: 1px solid rgba(42,64,96,.5); }
-.footer-brand .footer-logo { font-family: 'Instrument Serif', serif; font-size: 20px; color: #f0ebe5; display: block; margin-bottom: 8px; }
-.footer-brand .footer-logo span { color: #d4820a; }
-.footer-brand p { font-size: 13px; color: #4d6a80; line-height: 1.5; max-width: 280px; }
-.footer-links-group { display: flex; gap: 48px; }
-.footer-col { display: flex; flex-direction: column; gap: 8px; }
-.footer-col-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #4d6a80; margin-bottom: 4px; }
-.footer-col a { font-size: 13px; color: #6e8fa8; text-decoration: none; transition: color .15s; }
-.footer-col a:hover { color: #d4820a; }
-.footer-bottom { max-width: 1100px; margin: 0 auto; padding: 16px 0; font-size: 12px; color: #2a4060; }
-@media(max-width:760px) { nav { padding: 0 20px; } .nav-links { display: none; } .site-footer { padding: 40px 20px 0; } .site-footer-inner { grid-template-columns: 1fr; gap: 32px; } .footer-links-group { flex-wrap: wrap; gap: 28px; } }
+@media(max-width:600px){.wrapper{padding:40px 20px;}.tabs{flex-wrap:wrap;}}
 </style>
 </head>
 <body>
@@ -115,7 +78,6 @@ nav {
   <div class="tabs">
     <button class="tab-btn active" onclick="showTab('agb',this)">AGB</button>
     <button class="tab-btn" onclick="showTab('ds',this)">Datenschutz</button>
-    <button class="tab-btn" onclick="showTab('imp',this)">Impressum</button>
   </div>
 
   <!-- AGB -->
@@ -234,32 +196,6 @@ nav {
     <p>DokumentenOrganizer setzt <strong>keine Cookies</strong> und verwendet <strong>kein Tracking</strong>, keine Analyse-Tools und keine Werbenetzwerke.</p>
   </div>
 
-  <!-- IMPRESSUM -->
-  <div class="tab-content" id="tab-imp">
-    <h2>Angaben gemäß § 5 TMG</h2>
-    <div class="contact-box">
-      <strong>VM – Energy and Leisure</strong><br>
-      Inhaber: Volker Moos<br>
-      Gollenhofweg 5<br>
-    73563 Mögglingen<br>
-    Deutschland<br><br>
-      <strong>Kontakt:</strong><br>
-      E-Mail: info@energy-leisure.de<br>
-      Website: energy-leisure.de
-    </div>
-
-    <h2>Verantwortlich für den Inhalt (§ 55 Abs. 2 RStV)</h2>
-    <p>Volker Moos, Mögglingen</p>
-
-    <h2>Haftung für Inhalte</h2>
-    <p>Die Inhalte wurden mit größter Sorgfalt erstellt. Für Richtigkeit, Vollständigkeit und Aktualität übernehmen wir jedoch keine Gewähr.</p>
-
-    <h2>Haftung für Links</h2>
-    <p>Für Inhalte verlinkter Seiten ist stets der jeweilige Anbieter verantwortlich. Rechtswidrige Inhalte waren zum Zeitpunkt der Verlinkung nicht erkennbar.</p>
-
-    <h2>Streitschlichtung</h2>
-    <p>Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen. EU-Plattform: <a href="https://ec.europa.eu/consumers/odr" target="_blank" style="color:var(--amber);">ec.europa.eu/consumers/odr</a></p>
-  </div>
 </div>
 
 <footer class="site-footer">

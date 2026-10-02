@@ -7,6 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DokumentenOrganizer – So funktioniert's</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="shared.css">
 <style>
 :root {
   --bg: #0c1219;
@@ -27,21 +29,6 @@
 html { scroll-behavior: smooth; }
 body { background: var(--bg); color: var(--text); font-family: var(--body); font-size: 15px; line-height: 1.7; }
 
-/* ── NAV ── */
-nav {
-  position: sticky; top: 0; z-index: 100;
-  background: rgba(12,18,25,.9); backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-  padding: 0 40px; height: 60px;
-  display: flex; align-items: center; justify-content: space-between;
-}
-.nav-logo { font-family: var(--serif); font-size: 20px; }
-.nav-logo span { color: var(--accent); }
-.nav-links { display: flex; gap: 28px; }
-.nav-links a { color: var(--text2); text-decoration: none; font-size: 14px; font-weight: 500; transition: color .15s; }
-.nav-links a:hover { color: var(--accent); }
-.nav-cta { background: var(--accent); color: #0c1219; padding: 8px 20px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; transition: background .15s; }
-.nav-cta:hover { background: #7dd3fc; color: #0c1219 !important; }
 
 /* ── HERO ── */
 .hero {
@@ -235,44 +222,12 @@ footer {
 }
 
 @media(max-width: 680px) {
-  nav { padding: 0 20px; }
-  .nav-links { display: none; }
   .section { padding: 60px 20px; }
   .flow { flex-direction: column; }
   .flow-arrow { transform: rotate(90deg); padding: 4px 0; }
   .setup-step { flex-direction: column; gap: 12px; }
   footer { flex-direction: column; gap: 8px; text-align: center; }
 }
-
-/* ══ SHARED NAV + FOOTER ══ */
-nav {
-  position: sticky; top: 0; z-index: 100;
-  background: rgba(13,31,45,.97); backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(42,64,96,.8);
-  height: 64px; padding: 0 48px;
-  display: flex; align-items: center; justify-content: space-between; gap: 24px;
-}
-.nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-.nav-logo-mark { font-size: 20px; }
-.nav-logo-text { font-family: 'Instrument Serif', serif; font-size: 20px; color: #f0ebe5; }
-.nav-logo-text span { color: #d4820a; }
-.nav-links { display: flex; gap: 28px; align-items: center; }
-.nav-links a { color: #8ba4b8; text-decoration: none; font-size: 14px; font-weight: 500; transition: color .15s; }
-.nav-links a:hover, .nav-links a.active { color: #d4820a; }
-.nav-cta { background: #d4820a; color: #0d1f2d; padding: 9px 20px; border-radius: 9px; font-size: 14px; font-weight: 700; text-decoration: none; transition: all .2s; white-space: nowrap; }
-.nav-cta:hover { background: #f0a530; }
-.site-footer { background: #0d1f2d; border-top: 1px solid rgba(42,64,96,.8); padding: 48px 48px 0; margin-top: 80px; }
-.site-footer-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto; gap: 60px; padding-bottom: 40px; border-bottom: 1px solid rgba(42,64,96,.5); }
-.footer-brand .footer-logo { font-family: 'Instrument Serif', serif; font-size: 20px; color: #f0ebe5; display: block; margin-bottom: 8px; }
-.footer-brand .footer-logo span { color: #d4820a; }
-.footer-brand p { font-size: 13px; color: #4d6a80; line-height: 1.5; max-width: 280px; }
-.footer-links-group { display: flex; gap: 48px; }
-.footer-col { display: flex; flex-direction: column; gap: 8px; }
-.footer-col-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #4d6a80; margin-bottom: 4px; }
-.footer-col a { font-size: 13px; color: #6e8fa8; text-decoration: none; transition: color .15s; }
-.footer-col a:hover { color: #d4820a; }
-.footer-bottom { max-width: 1100px; margin: 0 auto; padding: 16px 0; font-size: 12px; color: #2a4060; }
-@media(max-width:760px) { nav { padding: 0 20px; } .nav-links { display: none; } .site-footer { padding: 40px 20px 0; } .site-footer-inner { grid-template-columns: 1fr; gap: 32px; } .footer-links-group { flex-wrap: wrap; gap: 28px; } }
 </style>
 </head>
 <body>
@@ -521,42 +476,42 @@ nav {
   <div class="faq-list">
 
     <div class="faq-item">
-      <div class="faq-q" onclick="toggleFaq(this)">Welche Dateitypen werden unterstützt?</div>
+      <div class="faq-q">Welche Dateitypen werden unterstützt?</div>
       <div class="faq-a">PDF, JPG, JPEG, PNG, WEBP, GIF und HEIC. Maximale Dateigröße: 15 MB pro Dokument. Größere Dateien landen automatisch in der Warteschlange zur manuellen Zuordnung.</div>
     </div>
 
     <div class="faq-item">
-      <div class="faq-q" onclick="toggleFaq(this)">Funktioniert die App ohne Internetverbindung?</div>
+      <div class="faq-q">Funktioniert die App ohne Internetverbindung?</div>
       <div class="faq-a">Nein – für die KI-Analyse wird eine Internetverbindung benötigt, da Gemini als Cloud-Service läuft. Alle anderen Funktionen (Kategorien verwalten, Warteschlange bearbeiten) funktionieren offline.</div>
     </div>
 
     <div class="faq-item">
-      <div class="faq-q" onclick="toggleFaq(this)">Was passiert wenn der Browser neu gestartet wird?</div>
+      <div class="faq-q">Was passiert wenn der Browser neu gestartet wird?</div>
       <div class="faq-a">Der Ordnerzugriff muss aus Datenschutzgründen nach jedem Browser-Neustart einmal neu bestätigt werden. Klicke dazu auf das 📁-Symbol oben rechts in der App. Alle anderen Daten (Kategorien, Protokoll, Lizenz) bleiben gespeichert.</div>
     </div>
 
     <div class="faq-item">
-      <div class="faq-q" onclick="toggleFaq(this)">Kann ich Google Drive oder OneDrive als Ordner verwenden?</div>
+      <div class="faq-q">Kann ich Google Drive oder OneDrive als Ordner verwenden?</div>
       <div class="faq-a">Ja – wenn du die Desktop-Sync-App von Google Drive oder OneDrive installiert hast, erscheint dein Cloud-Ordner als normaler lokaler Ordner. Wähle diesen einfach als Arbeitsordner aus. Deine Dokumente werden dann automatisch in der Cloud gesichert.</div>
     </div>
 
     <div class="faq-item">
-      <div class="faq-q" onclick="toggleFaq(this)">Was kostet der Gemini API Key?</div>
+      <div class="faq-q">Was kostet der Gemini API Key?</div>
       <div class="faq-a">Der Gemini API Key ist kostenlos für private Nutzung. Das kostenlose Kontingent erlaubt 1.500 Analyse-Anfragen pro Tag – für privaten Einsatz mehr als ausreichend. Erst bei sehr hohem Volumen entstehen Kosten.</div>
     </div>
 
     <div class="faq-item">
-      <div class="faq-q" onclick="toggleFaq(this)">Was passiert wenn die KI ein Dokument nicht erkennt?</div>
+      <div class="faq-q">Was passiert wenn die KI ein Dokument nicht erkennt?</div>
       <div class="faq-a">Ist die KI nicht ausreichend sicher (unter 70% Konfidenz) oder kennt sie die vorgeschlagene Kategorie nicht, landet das Dokument in der Warteschlange. Dort kannst du es manuell zuordnen – die KI-Vorschläge sind dabei vorausgefüllt und müssen nur noch bestätigt oder korrigiert werden.</div>
     </div>
 
     <div class="faq-item">
-      <div class="faq-q" onclick="toggleFaq(this)">In welchen Browsern funktioniert die App?</div>
+      <div class="faq-q">In welchen Browsern funktioniert die App?</div>
       <div class="faq-a">Chrome und Edge auf Desktop, Laptop und Chromebook. Firefox und Safari werden nicht unterstützt, da diese Browser den notwendigen lokalen Ordnerzugriff (File System Access API) nicht implementieren.</div>
     </div>
 
     <div class="faq-item">
-      <div class="faq-q" onclick="toggleFaq(this)">Kann ich die App auf mehreren Geräten nutzen?</div>
+      <div class="faq-q">Kann ich die App auf mehreren Geräten nutzen?</div>
       <div class="faq-a">Ja – du kannst deine Lizenznummer auf mehreren Geräten eingeben. Kategorien, Queue und Protokoll sind jedoch gerätespezifisch im lokalen Browserspeicher. Wenn du denselben Sync-Ordner (z.B. Google Drive) verwendest, bleiben die Dateien auf allen Geräten aktuell.</div>
     </div>
 
@@ -576,12 +531,14 @@ nav {
 </footer>
 
 <script>
-function toggleFaq(el) {
-  const item = el.closest('.faq-item');
-  const isOpen = item.classList.contains('open');
-  document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
-  if (!isOpen) item.classList.add('open');
-}
+document.querySelectorAll('.faq-q').forEach(function(el) {
+  el.addEventListener('click', function() {
+    const item = el.closest('.faq-item');
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+  });
+});
 </script>
 
 <footer class="site-footer">
