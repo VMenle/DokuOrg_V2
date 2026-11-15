@@ -1298,6 +1298,7 @@ async function runProcess(btn) {
   if (categories.length === 0) { toast('Bitte zuerst mindestens eine Kategorie anlegen (Kategorien-Tab)', 'warn'); return; }
 
   _prozessLaeuft = true;
+  window.onbeforeunload = () => true;
   btn.disabled = true; btn.textContent = '⏳ Läuft...';
   const progress = document.getElementById('progressWrap');
   const bar = document.getElementById('progressBar');
@@ -1397,6 +1398,7 @@ async function runProcess(btn) {
   saveState();
   renderAll();
   _prozessLaeuft = false;
+  window.onbeforeunload = null;
   if (btn) { btn.disabled = false; btn.textContent = '▶ Jetzt starten'; }
   setTimeout(() => { progress.classList.remove('show'); bar.style.width='0%'; }, 3000);
 }
