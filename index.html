@@ -324,7 +324,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
     <div class="license-logo">📂 <b>DOKU</b>menten<span><b>ORGA</b>nizer</span></div>
     <div class="license-sub">KI-gestützte Dokumentenverwaltung</div>
     <div class="license-label">Lizenznummer eingeben</div>
-    <input class="license-input" id="licInput" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" name="do-not-autofill" readonly>
+    <input class="license-input" id="licInput" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" name="do-not-autofill">
     <button class="license-btn" id="licBtn">Aktivieren</button>
     <div class="license-status" id="licStatus"></div>
     <div class="license-info">
@@ -556,7 +556,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
             <div class="card">
               <div class="card-title" style="margin-bottom:14px;">Arbeitsordner</div>
               <div class="info-box" id="folderInfo">Kein Ordner verbunden – bitte verbinden bevor du startest</div>
-              <button class="btn btn-ghost" onclick="openFolder()">📁 Ordner neu verbinden</button>
+              <button class="btn btn-ghost" id="openFolderSettingsBtn">📁 Ordner neu verbinden</button>
             </div>
 
             <div class="card">
@@ -777,6 +777,7 @@ async function backgroundLicenseCheck() {
 let workspaceHandle = null;
 let eingangsHandle = null;
 let _queueIdCounter = Date.now();
+let _belegeCheckList = [];
 
 // Konfidenz-Schwelle aus localStorage laden (Standard: 80%)
 let konfidenzSchwelle = parseInt(localStorage.getItem('ds_konfidenz') || '80');
@@ -2414,7 +2415,7 @@ function openBelegeCheck() {
   if (alte.length === 0) {
     listEl.innerHTML = '<div class="empty" style="padding:20px 0;">✅ Keine Belege älter als ' + retention + ' Jahre gefunden.</div>';
   } else {
-    window._belegeCheckList = alte;
+    _belegeCheckList = alte;
     listEl.innerHTML = alte.map((l, i) => {
       return '<div class="q-card" style="margin-bottom:8px;">' +
         '<div class="q-card-name">' + esc(l.newName||'–') + '</div>' +
@@ -2439,7 +2440,7 @@ function belegeBehalten(i) {
 }
 
 async function belegeInPapierkorb(idx) {
-  const l = window._belegeCheckList?.[idx];
+  const l = _belegeCheckList?.[idx];
   if (!l) { toast('Eintrag nicht gefunden', 'err'); return; }
   if (!workspaceHandle) { toast('Ordner nicht verbunden', 'warn'); return; }
   const btn = document.getElementById('belege-btn-' + idx);
@@ -2480,8 +2481,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // Lizenz-Screen
   const licInput = document.getElementById('licInput');
   if (licInput) {
-    licInput.addEventListener('focus', () => licInput.removeAttribute('readonly'));
-    licInput.addEventListener('click', () => licInput.removeAttribute('readonly'));
     licInput.addEventListener('keydown', e => { if (e.key === 'Enter') checkLicense(); });
   }
   document.getElementById('licBtn')?.addEventListener('click', checkLicense);
@@ -2497,6 +2496,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Header
   document.getElementById('openFolderBtn')?.addEventListener('click', openFolder);
+  document.getElementById('openFolderSettingsBtn')?.addEventListener('click', openFolder);
 
   // Navigation via data-page
   document.querySelectorAll('.nav-btn[data-page]').forEach(btn => {

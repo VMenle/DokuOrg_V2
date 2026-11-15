@@ -9,6 +9,7 @@
 <meta name="description" content="Dein Papierkram automatisch sortiert. DokumentenOrganizer liest, benennt um und legt Dokumente per KI ab. Jetzt als Beta-Tester bewerben – 3 Monate kostenlos.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
 <style>
 :root {
   --amber:#d4820a;--amber-light:#f0a530;--amber-bg:rgba(212,130,10,.08);--amber-border:rgba(212,130,10,.22);
@@ -169,35 +170,6 @@ a{color:inherit;}
   .footer{padding:20px 24px;flex-direction:column;text-align:center;}
 }
 
-/* ══ SHARED NAV + FOOTER ══ */
-nav {
-  position: sticky; top: 0; z-index: 100;
-  background: rgba(13,31,45,.97); backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(42,64,96,.8);
-  height: 64px; padding: 0 48px;
-  display: flex; align-items: center; justify-content: space-between; gap: 24px;
-}
-.nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-.nav-logo-mark { font-size: 20px; }
-.nav-logo-text { font-family: 'Instrument Serif', serif; font-size: 20px; color: #f0ebe5; }
-.nav-logo-text span { color: #d4820a; }
-.nav-links { display: flex; gap: 28px; align-items: center; }
-.nav-links a { color: #8ba4b8; text-decoration: none; font-size: 14px; font-weight: 500; transition: color .15s; }
-.nav-links a:hover, .nav-links a.active { color: #d4820a; }
-.nav-cta { background: #d4820a; color: #0d1f2d; padding: 9px 20px; border-radius: 9px; font-size: 14px; font-weight: 700; text-decoration: none; transition: all .2s; white-space: nowrap; }
-.nav-cta:hover { background: #f0a530; }
-.site-footer { background: #0d1f2d; border-top: 1px solid rgba(42,64,96,.8); padding: 48px 48px 0; margin-top: 80px; }
-.site-footer-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto; gap: 60px; padding-bottom: 40px; border-bottom: 1px solid rgba(42,64,96,.5); }
-.footer-brand .footer-logo { font-family: 'Instrument Serif', serif; font-size: 20px; color: #f0ebe5; display: block; margin-bottom: 8px; }
-.footer-brand .footer-logo span { color: #d4820a; }
-.footer-brand p { font-size: 13px; color: #4d6a80; line-height: 1.5; max-width: 280px; }
-.footer-links-group { display: flex; gap: 48px; }
-.footer-col { display: flex; flex-direction: column; gap: 8px; }
-.footer-col-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #4d6a80; margin-bottom: 4px; }
-.footer-col a { font-size: 13px; color: #6e8fa8; text-decoration: none; transition: color .15s; }
-.footer-col a:hover { color: #d4820a; }
-.footer-bottom { max-width: 1100px; margin: 0 auto; padding: 16px 0; font-size: 12px; color: #2a4060; }
-@media(max-width:760px) { nav { padding: 0 20px; } .nav-links { display: none; } .site-footer { padding: 40px 20px 0; } .site-footer-inner { grid-template-columns: 1fr; gap: 32px; } .footer-links-group { flex-wrap: wrap; gap: 28px; } }
 </style>
 </head>
 <body>
