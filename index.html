@@ -5,7 +5,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://qvvsuksdribtjkplaynu.supabase.co https://generativelanguage.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' blob: data:; connect-src 'self' https://qvvsuksdribtjkplaynu.supabase.co https://generativelanguage.googleapis.com; font-src https://fonts.gstatic.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://qvvsuksdribtjkplaynu.supabase.co https://generativelanguage.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' blob: data:; connect-src 'self' https://qvvsuksdribtjkplaynu.supabase.co https://generativelanguage.googleapis.com; font-src https://fonts.gstatic.com;">
 <title>DokumentenOrganizer</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1f2d'/%3E%3Crect x='6' y='8' width='14' height='3' rx='1.5' fill='%23d4820a'/%3E%3Crect x='6' y='13' width='20' height='3' rx='1.5' fill='%23f0ebe5'/%3E%3Crect x='6' y='18' width='20' height='3' rx='1.5' fill='%23f0ebe5'/%3E%3Crect x='6' y='23' width='12' height='3' rx='1.5' fill='%232a9d8f'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -967,7 +967,7 @@ async function initApp() {
   }
   if (licData.expiry) {
     const expDate = new Date(licData.expiry);
-    if (expDate < new Date()) {
+    if (!isNaN(expDate.getTime()) && expDate < new Date()) {
       localStorage.removeItem('ds_license');
       localStorage.removeItem('ds_lic_data');
       showScreen('licenseScreen'); return;
