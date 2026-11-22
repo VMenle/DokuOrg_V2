@@ -42,6 +42,15 @@
 - **Regel-Vorschläge**: Wird dreimal gleich korrigiert, schlägt die App vor, daraus eine feste Regel zu machen.
 - **Korrigieren im Protokoll** verschiebt und benennt die Datei sicher um; inhaltsgleiche alte Steuer-Kopien werden entfernt, das Original in `_Archiv` bleibt.
 
+### Versicherungs-Check (Tab „Versicherungen“)
+
+- Zuerst alle Personen anlegen (Name, Geburtsdatum, Familienstand, Schule/Studium/Beruf, Krankenversicherung, Einkommen) und den Haushalt (Wohnsituation, Wohnfläche, Autos, Hund, Kredit).
+- Dokumente im Ordner `Versicherungen` werden beim Ablegen automatisch von Gemini ausgelesen (Versicherer, versicherte Personen, Deckungssumme, Beitrag, Laufzeit, Auszahlung). Vorhandene Dokumente per Knopf – nur Dateinamen mit dem eingestellten Anfang (Standard `2026`).
+- Je Person: Versicherung, Versicherer, wogegen, Höhe und in Klammern die Empfehlung; unterversichert/fehlend = dunkelgelb. Kapitalversicherungen mit Auszahlungsjahr und Summe.
+- „Änderungen“ zeigt kommende Ereignisse (▲ positiv / ▼ negativ), z. B. Volljährigkeit, Ende der Familienversicherung, Ausbildungsende, Auszahlungen, auslaufende Verträge.
+- Fehlende Angaben erscheinen als „Offene Fragen“ und lassen sich direkt beantworten; jeder Vertrag ist von Hand korrigierbar (korrigierte Felder werden beim erneuten Auslesen nicht überschrieben).
+- Empfehlungswerte (Faustregeln nach Finanztip/Verbraucherzentrale) sind unter „Empfehlungswerte“ änderbar. Orientierung, keine Beratung.
+
 ### Datensicherheit beim Ablegen
 
 - Zieldatei und Archivkopie werden geschrieben und per Größe und SHA-256-Prüfsumme gegen das Original geprüft

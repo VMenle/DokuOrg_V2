@@ -287,6 +287,30 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 .settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
 .settings-grid .card{margin-bottom:0;}
 .settings-full{grid-column:1/-1;}
+/* ── VERSICHERUNGS-CHECK ── */
+.vs-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.vs-table th{text-align:left;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);}
+.vs-table td{padding:9px 10px;border-bottom:1px solid rgba(42,61,85,.4);vertical-align:top;}
+.vs-table a{color:var(--text);}
+.vs-unter td{background:rgba(184,134,11,.24);}
+.vs-unter td:first-child{box-shadow:inset 3px 0 0 #b8860b;}
+.vs-unter .vs-status{color:#e3b341;font-weight:700;}
+.vs-offen .vs-status{color:var(--text2);}
+.vs-ok .vs-status{color:var(--accent2);font-weight:700;}
+.vs-opt td{color:var(--text2);}
+.vs-empf{color:var(--text3);}
+.vs-klein{font-size:11.5px;color:var(--text3);line-height:1.5;}
+.vs-kopf{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;}
+.vs-zaehler{font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:rgba(184,134,11,.3);color:#e3b341;}
+.vs-zaehler.ok{background:rgba(42,157,143,.2);color:var(--accent2);}
+.vs-ev{display:flex;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(42,61,85,.4);font-size:13px;}
+.vs-ev-plus{color:#4ade80;} .vs-ev-minus{color:#e3b341;}
+.vs-ev-datum{font-family:var(--mono);font-size:11px;color:var(--text3);white-space:nowrap;}
+.vs-frage{padding:8px 0;border-bottom:1px solid rgba(42,61,85,.4);}
+.vs-frage-text{font-size:13px;margin-bottom:6px;}
+.vs-frage-eingabe{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.vs-frage-eingabe input,.vs-frage-eingabe select,.vs-input{background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:16px;max-width:100%;min-width:0;}
+.vs-checks{display:flex;flex-wrap:wrap;gap:10px;font-size:13px;}
 
 /* ── KONFIDENZ SLIDER ── */
 .konfidenz-slider{width:100%;accent-color:var(--accent);cursor:pointer;margin:8px 0;}
@@ -436,6 +460,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
       <button class="nav-btn" data-page="queue"><span class="nav-icon">📥</span>TODO - Unklar<span class="nav-badge" id="qBadge" style="display:none">0</span></button>
       <button class="nav-btn" data-page="kategorien"><span class="nav-icon">🗂</span>Kategorien</button>
       <button class="nav-btn" data-page="log"><span class="nav-icon">📋</span>Protokoll</button>
+      <button class="nav-btn" data-page="versicherungen"><span class="nav-icon">🛡</span>Versicherungen<span class="nav-badge" id="vsBadge" style="display:none">0</span></button>
       <button class="nav-btn" data-page="einstellungen"><span class="nav-icon">⚙️</span>Einstellungen</button>
       <div style="margin-top:auto;border-top:1px solid var(--border);padding-top:10px;margin-top:12px;">
         <div class="sidebar-ext-links">
@@ -545,6 +570,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
         </div>
       </div>
 
+      <!-- VERSICHERUNGS-CHECK PAGE -->
+      <div class="page" id="page-versicherungen">
+        <div class="page-hd"><h1>Versicherungs-Check</h1><p>Wer ist wogegen wie hoch versichert – mit Empfehlung und kommenden Änderungen</p></div>
+        <div id="vsInhalt"></div>
+      </div>
+
       <!-- EINSTELLUNGEN PAGE -->
       <div class="page" id="page-einstellungen">
         <div class="page-hd"><h1>Einstellungen</h1><p>Konfiguration und Lizenzinfo</p></div>
@@ -643,6 +674,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 
     </div>
   </div>
+
+<!-- VERSICHERUNGS-FORMULAR -->
+<div class="overlay" id="vsOverlay"><div class="modal" id="vsModal"></div></div>
 
 <!-- BELEGE-CHECK MODAL -->
 <div class="overlay" id="belegeCheckOverlay">
@@ -1500,6 +1534,7 @@ function showPage(id, btn) {
   if (btn) btn.classList.add('active');
   if (id === 'dashboard') { renderDashboard(); renderFolderView(); }
   if (id === 'einstellungen') { initKonfidenzSlider(); renderRegeln(); }
+  if (id === 'versicherungen' && typeof renderVersicherungen === 'function') renderVersicherungen();
 }
 
 // ══════════════════════════════════════════════
@@ -1805,6 +1840,10 @@ async function processFile(item, apiKey) {
     addToLog(name, tatsaecklicherName, katMatch.name, konfidenz, steuer, 'Automatisch', {...details, belegdatum: datum});
     if (tatsaecklicherName !== newName) toast('✓ ' + tatsaecklicherName + ' (umbenannt – Name existierte bereits)', 'warn');
     else toast('✓ ' + tatsaecklicherName, 'ok');
+    if (typeof vsNachAblage === 'function' && vsVersicherungsKategorie()?.folderName === katMatch.folderName) {
+      await sleep(GEMINI_REQUEST_DELAY_MS); // zweiter Gemini-Aufruf: Rate-Limit einhalten
+      await vsNachAblage(katMatch.folderName, tatsaecklicherName);
+    }
     return 'abgelegt';
   }
   addToQueue(name, kategorie, art, typ, person, datum, steuer, unklarGrund, konfidenz, file, details);
@@ -2189,6 +2228,7 @@ async function resolveItem() {
     document.getElementById('queueOverlay').classList.remove('active');
     toast('✓ Abgelegt: ' + finalName, 'ok');
     btn.textContent = '✓ Ablegen'; btn.disabled = false;
+    if (typeof vsNachAblage === 'function') await vsNachAblage(folderName, finalName);
   } catch(e) {
     const veraltet = e.message === 'nicht im Eingangsordner' || e.message === 'andere Datei';
     const msg = e.message === 'andere Datei'
@@ -2272,6 +2312,7 @@ async function korrigiereLogEintrag() {
     renderAll();
     document.getElementById('queueOverlay').classList.remove('active');
     toast('✓ Korrigiert: ' + finalName, 'ok');
+    if (typeof vsNachAblage === 'function') await vsNachAblage(folderName, finalName);
   } catch(e) {
     toast('Korrektur fehlgeschlagen: ' + e.message + ' – an der Ablage wurde nichts verloren.', 'err');
   }
@@ -2682,7 +2723,8 @@ function deactivateLicense() {
   if (allesLoeschen) {
     ['ds_queue','ds_log','ds_categories','ds_api_key','ds_workspace_name',
      'ds_categories_version','ds_konfidenz','ds_folder_consent',
-     'ds_regeln','ds_korrekturen','ds_verarbeitet'].forEach(k => localStorage.removeItem(k));
+     'ds_regeln','ds_korrekturen','ds_verarbeitet',
+     'ds_haushalt','ds_policen','ds_vs_werte','ds_vs_gelesen','ds_vs_erledigt'].forEach(k => localStorage.removeItem(k));
     queue = []; log = []; categories = []; regeln = []; korrekturen = [];
     toast('Alle Daten gelöscht', 'ok');
   } else {
@@ -2699,6 +2741,7 @@ function renderAll() {
   renderKategorien();
   renderLog();
   renderRegeln();
+  if (typeof vsBadgeAktualisieren === 'function') vsBadgeAktualisieren();
   updateLicInfo();
   renderDashboard();
 }
@@ -3174,5 +3217,6 @@ setTimeout(() => {
   }
 }, 200);
 </script>
+<script src="versicherung.js"></script>
 </body>
 </html>
