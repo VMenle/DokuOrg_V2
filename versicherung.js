@@ -61,10 +61,12 @@ let vsPolicen = _loadSafe('ds_policen', []);
 let vsWerte = Object.assign({}, VS_STANDARD_WERTE, _loadSafe('ds_vs_werte', {}));
 let vsGelesen = _loadSafe('ds_vs_gelesen', []);
 let vsErledigt = _loadSafe('ds_vs_erledigt', []);
+let vsAusstehend = _loadSafe('ds_vs_ausstehend', []); // abgelegt, aber Auslesen gescheitert
 let _vsScanLaeuft = false;
 
 function vsSpeichern() {
-  const daten = { ds_haushalt: vsHaushalt, ds_policen: vsPolicen, ds_vs_werte: vsWerte, ds_vs_gelesen: vsGelesen.slice(-1000), ds_vs_erledigt: vsErledigt };
+  const daten = { ds_haushalt: vsHaushalt, ds_policen: vsPolicen, ds_vs_werte: vsWerte, ds_vs_gelesen: vsGelesen.slice(-1000),
+    ds_vs_erledigt: vsErledigt, ds_vs_ausstehend: vsAusstehend };
   for (const [k, v] of Object.entries(daten)) {
     try { localStorage.setItem(k, JSON.stringify(v)); }
     catch (e) { toast('Versicherungsdaten konnten nicht gespeichert werden: ' + e.message, 'err'); }
@@ -510,6 +512,7 @@ async function vsDateiAuslesen(ordnerHandle, dateiName) {
   const ergebnis = await vsGemini(base64, file.type || guessMime(dateiName));
   const r = vsUebernehmen(ergebnis, dateiName);
   vsGelesen.push(fp);
+  vsAusstehend = vsAusstehend.filter(n => n !== dateiName);
   vsSpeichern();
   return r;
 }
@@ -525,7 +528,8 @@ async function vsNachAblage(folderName, dateiName) {
     vsBadgeAktualisieren();
   } catch (e) {
     console.warn('Versicherung auslesen fehlgeschlagen:', e);
-    toast('Versicherungsdaten aus „' + dateiName + '“ konnten nicht ausgelesen werden – später im Tab Versicherungen erneut versuchen.', 'warn');
+    if (!vsAusstehend.includes(dateiName)) { vsAusstehend.push(dateiName); vsSpeichern(); }
+    toast('Versicherungsdaten aus „' + dateiName + '“ konnten nicht ausgelesen werden – wird bei „Ordner Versicherungen auslesen“ nachgeholt.', 'warn');
   }
 }
 
@@ -542,7 +546,8 @@ async function vsOrdnerAuslesen() {
     const ordner = await workspaceHandle.getDirectoryHandle(kat.folderName, { create: false });
     const liste = [];
     for await (const [name, h] of ordner.entries()) {
-      if (h.kind !== 'file' || !/\.(pdf|jpg|jpeg|png|webp|gif|heic)$/i.test(name) || !name.startsWith(prefix)) continue;
+      if (h.kind !== 'file' || !/\.(pdf|jpg|jpeg|png|webp|gif|heic)$/i.test(name)) continue;
+      if (!name.startsWith(prefix) && !vsAusstehend.includes(name)) continue;
       const f = await h.getFile();
       if (!vsGelesen.includes(name + '|' + f.size)) liste.push(name);
     }
@@ -557,7 +562,10 @@ async function vsOrdnerAuslesen() {
       } catch (e) {
         fehler++;
         console.warn('Auslesen fehlgeschlagen:', name, e);
-        if (/Gemini (429|401|403)/.test(e.message)) { toast('Abgebrochen: ' + e.message.substring(0, 120), 'err'); break; }
+        if (/Gemini (402|429|401|403)/.test(e.message)) {
+          toast(e.message.includes('402') ? '💳 Gemini-Guthaben aufgebraucht (402) – Auslesen abgebrochen. Nach dem Aufladen erneut starten.' : 'Abgebrochen: ' + e.message.substring(0, 120), 'err');
+          break;
+        }
       }
       if (n < liste.length) await sleep(GEMINI_REQUEST_DELAY_MS);
     }

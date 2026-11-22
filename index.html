@@ -1568,9 +1568,15 @@ function merkeVerarbeitet(f) {
   try { localStorage.setItem('ds_verarbeitet', JSON.stringify(_verarbeitet)); } catch(e) {}
 }
 
-// Steht genau diese Datei schon offen in der Warteschlange?
+// Einträge, die nur an einem technischen Fehler scheiterten (Netzwerk, Timeout, Gemini-Fehler)
+// – auch ältere Einträge ohne Markierung anhand des Grundes erkennen
+function istTechnischerFehler(q) {
+  return !!q.fehler || /^(Fehler:|Fehler bei Analyse|Timeout bei Analyse)/.test(q.reason || '');
+}
+
+// Steht genau diese Datei schon offen in der Warteschlange (echte Zuordnungsfrage)?
 function offenInQueue(name, f) {
-  return queue.some(q => q.status === 'offen' && q.name === name &&
+  return queue.some(q => q.status === 'offen' && q.name === name && !istTechnischerFehler(q) &&
     (q.groesse === undefined || (q.groesse === f.size && q.geaendert === f.lastModified)));
 }
 
@@ -1606,6 +1612,10 @@ async function runProcess(btn) {
     if (schonAbgelegt > 0) {
       toast(schonAbgelegt + ' Datei(en) im _Eingang sind bereits abgelegt (Kopie in Kategorie + _Archiv) und konnten nur nicht entfernt werden – bitte im _Eingang manuell löschen.', 'warn');
     }
+    // Technisch gescheiterte Einträge werden jetzt neu versucht – alte Einträge entfernen
+    const vorher = queue.length;
+    queue = queue.filter(q => !(q.status === 'offen' && istTechnischerFehler(q)));
+    if (queue.length !== vorher) { saveState(); renderQueue(); }
 
     if (files.length === 0) {
       info.textContent = wartenInQueue > 0
@@ -1642,6 +1652,9 @@ async function runProcess(btn) {
           if (!await workspaceErreichbar()) {
             abbrechen = true;
             verbindungVerloren('Ordner-Verbindung während der Verarbeitung verloren. „' + item.name + '“ und alle restlichen Dateien liegen unverändert im _Eingang.');
+          } else if (statusCode === '402' || /prepayment|credits are depleted|billing/i.test(msg)) {
+            abbrechen = true;
+            toast('💳 Gemini-Guthaben aufgebraucht (402). Bitte im Google AI Studio Guthaben aufladen oder einen anderen API Key eintragen. Alle Dateien liegen unverändert im _Eingang und werden beim nächsten Start verarbeitet.', 'err');
           } else if (statusCode === '429' || msg.includes('RESOURCE_EXHAUSTED')) {
             abbrechen = true;
             toast('⏸ Gemini Kontingent erschöpft (429). Bitte 1 Minute warten, dann neu starten.', 'warn');
@@ -1656,11 +1669,11 @@ async function runProcess(btn) {
             abbrechen = true;
             toast('📁 Ordnerzugriff verweigert – bitte Ordner neu verbinden', 'err');
           } else if (e.name === 'AbortError' || msg.includes('Timeout')) {
-            toast('⏱ Timeout bei "' + item.name + '" – Datei in Warteschlange', 'warn');
-            addToQueue(item.name, '', '', '', '', '', false, 'Timeout bei Analyse – bitte manuell zuordnen.', 0, item.file);
+            toast('⏱ Timeout bei "' + item.name + '" – wird beim nächsten Start erneut versucht', 'warn');
+            addToQueue(item.name, '', '', '', '', '', false, 'Timeout bei Analyse – wird beim nächsten Start erneut versucht, oder manuell zuordnen.', 0, item.file, {fehler:true});
           } else {
             addToQueue(item.name, '', '', '', '', '', false,
-              'Fehler: ' + msg.substring(0, 200) + ' – Datei liegt unverändert im _Eingang, bitte manuell zuordnen.', 0, item.file);
+              'Fehler: ' + msg.substring(0, 200) + ' – Datei liegt unverändert im _Eingang und wird beim nächsten Start erneut versucht, oder manuell zuordnen.', 0, item.file, {fehler:true});
             toast('⚠ Fehler bei "' + item.name + '": ' + msg.substring(0, 100), 'warn');
           }
         }
@@ -2047,7 +2060,8 @@ function addToQueue(name, kat, art, typ, person, datum, steuer, reason, konfiden
     name, kat, art, typ, person, datum, steuer,
     reason, konfidenz: konfidenz||0, status:'offen',
     absender: details ? details.absender : '',
-    beschreibung: details ? details.beschreibung : '',
+    beschreibung: details ? details.beschreibung || '' : '',
+    fehler: !!(details && details.fehler),
     groesse: file ? file.size : undefined,
     geaendert: file ? file.lastModified : undefined,
     added: new Date().toISOString().split('T')[0]
@@ -2724,7 +2738,7 @@ function deactivateLicense() {
     ['ds_queue','ds_log','ds_categories','ds_api_key','ds_workspace_name',
      'ds_categories_version','ds_konfidenz','ds_folder_consent',
      'ds_regeln','ds_korrekturen','ds_verarbeitet',
-     'ds_haushalt','ds_policen','ds_vs_werte','ds_vs_gelesen','ds_vs_erledigt'].forEach(k => localStorage.removeItem(k));
+     'ds_haushalt','ds_policen','ds_vs_werte','ds_vs_gelesen','ds_vs_erledigt','ds_vs_ausstehend'].forEach(k => localStorage.removeItem(k));
     queue = []; log = []; categories = []; regeln = []; korrekturen = [];
     toast('Alle Daten gelöscht', 'ok');
   } else {

@@ -121,6 +121,10 @@ Beispiel: 20250315_Versicherungen_KFZ_Rechnung_Allianz.pdf
 **„Gemini API Fehler 429"**
 → Rate Limit erreicht – 1 Minute warten, dann neu starten
 
+**„Gemini 402 – prepayment credits are depleted"**
+→ Das Guthaben des Google-Projekts zum API Key ist aufgebraucht. Im Google AI Studio Guthaben aufladen oder unter Einstellungen → Gemini API Key einen anderen Key eintragen.
+→ Die App bricht sofort ab; alle Dateien bleiben im `_Eingang` und werden beim nächsten Start automatisch verarbeitet. Nicht ausgelesene Versicherungsdokumente holt „Ordner Versicherungen auslesen“ nach.
+
 **„Gemini API Fehler 404"**
 → Modell nicht gefunden – Seite neu laden, API Key in Einstellungen prüfen
 
