@@ -444,7 +444,7 @@ async function vsGemini(base64, mimeType) {
   } finally { clearTimeout(t); }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error('Gemini ' + res.status + ': ' + (err.error?.message || res.statusText));
+    throw new Error('Gemini ' + res.status + ': ' + (err.error?.message || res.statusText) + geminiFehlerDetails(err));
   }
   const data = await res.json();
   const text = (data.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join('');
@@ -517,20 +517,12 @@ async function vsDateiAuslesen(ordnerHandle, dateiName) {
   return r;
 }
 
-// Wird nach jeder Ablage aufgerufen – liest nur Dokumente im Versicherungsordner aus
-async function vsNachAblage(folderName, dateiName) {
+// Nach jeder Ablage: Versicherungsdokument nur vormerken – ausgelesen wird erst auf Anforderung
+function vsVormerken(folderName, dateiName) {
   const kat = vsVersicherungsKategorie();
-  if (!kat || kat.folderName !== folderName || !workspaceHandle) return;
-  try {
-    const ordner = await workspaceHandle.getDirectoryHandle(folderName, { create: false });
-    const r = await vsDateiAuslesen(ordner, dateiName);
-    if (r && (r.neu || r.aktualisiert)) toast('🛡 Versicherungs-Check: ' + r.neu + ' neu, ' + r.aktualisiert + ' aktualisiert', 'info');
-    vsBadgeAktualisieren();
-  } catch (e) {
-    console.warn('Versicherung auslesen fehlgeschlagen:', e);
-    if (!vsAusstehend.includes(dateiName)) { vsAusstehend.push(dateiName); vsSpeichern(); }
-    toast('Versicherungsdaten aus „' + dateiName + '“ konnten nicht ausgelesen werden – wird bei „Ordner Versicherungen auslesen“ nachgeholt.', 'warn');
-  }
+  if (!kat || kat.folderName !== folderName) return;
+  if (!vsAusstehend.includes(dateiName)) { vsAusstehend.push(dateiName); vsSpeichern(); }
+  vsBadgeAktualisieren();
 }
 
 async function vsOrdnerAuslesen() {
@@ -563,7 +555,9 @@ async function vsOrdnerAuslesen() {
         fehler++;
         console.warn('Auslesen fehlgeschlagen:', name, e);
         if (/Gemini (402|429|401|403)/.test(e.message)) {
-          toast(e.message.includes('402') ? '💳 Gemini-Guthaben aufgebraucht (402) – Auslesen abgebrochen. Nach dem Aufladen erneut starten.' : 'Abgebrochen: ' + e.message.substring(0, 120), 'err');
+          toast(e.message.includes('402') ? '💳 Gemini-Guthaben aufgebraucht (402) – Auslesen abgebrochen. Nach dem Aufladen erneut starten.'
+            : e.message.includes('429') ? geminiLimitMeldung(e.message) + ' Noch nicht gelesene Dokumente bleiben vorgemerkt.'
+            : 'Abgebrochen: ' + e.message.substring(0, 120), 'err');
           break;
         }
       }
@@ -585,7 +579,7 @@ function vsBadgeAktualisieren() {
   if (!b) return;
   const unter = vsHaushalt.personen.reduce((a, p) => a + vsBewertePerson(p).filter(r => r.status === 'unter' || r.status === 'fehlt').length, 0)
     + vsBewerteHaushalt().filter(r => r.status === 'unter' || r.status === 'fehlt').length;
-  const n = vsHaushalt.personen.length ? unter + vsOffeneFragen().length : 0;
+  const n = vsHaushalt.personen.length ? unter + vsOffeneFragen().length + vsAusstehend.length : 0;
   b.textContent = n;
   b.style.display = n > 0 ? 'inline-flex' : 'none';
 }
@@ -645,6 +639,14 @@ function renderVersicherungen() {
     return;
   }
 
+  // Vorgemerkte, noch nicht ausgelesene Dokumente
+  if (vsAusstehend.length) {
+    html += '<div class="card" style="border-color:var(--accent);"><div class="vs-kopf" style="margin-bottom:0;align-items:center;"><div>' +
+      '<div class="card-title">📄 ' + vsAusstehend.length + ' neue(s) Versicherungsdokument(e) noch nicht ausgelesen</div>' +
+      '<div class="vs-klein">Wird erst auf Anforderung an Gemini geschickt.</div></div>' +
+      '<button class="btn btn-primary btn-sm" data-vs-action="scan">Jetzt auslesen</button></div></div>';
+  }
+
   // Offene Fragen
   const fragen = vsOffeneFragen();
   if (fragen.length) {
@@ -679,7 +681,7 @@ function renderVersicherungen() {
 
   // Verwaltung
   html += '<div class="card"><div class="card-title" style="margin-bottom:10px;">Unterlagen & Verträge</div>' +
-    '<p style="font-size:13px;color:var(--text2);margin-bottom:10px;">Neue Dokumente im Ordner „Versicherungen“ werden beim Ablegen automatisch ausgelesen. Für vorhandene Dokumente:</p>' +
+    '<p style="font-size:13px;color:var(--text2);margin-bottom:10px;">Ausgelesen wird nur auf Anforderung (spart Gemini-Kontingent): vorgemerkte neue Versicherungsdokumente' + (vsAusstehend.length ? ' (<b>' + vsAusstehend.length + '</b>)' : '') + ' und vorhandene Dokumente, deren Name so beginnt:</p>' +
     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;"><span class="vs-klein">Dateiname beginnt mit</span><input type="text" id="vsPrefix" value="2026" style="width:90px;" class="vs-input">' +
     '<button class="btn btn-primary btn-sm" data-vs-action="scan">📂 Ordner Versicherungen auslesen</button></div><div id="vsScanInfo" class="vs-klein"></div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><button class="btn btn-ghost btn-sm" data-vs-action="person-neu">+ Person</button>' +

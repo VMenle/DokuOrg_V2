@@ -45,7 +45,7 @@
 ### Versicherungs-Check (Tab „Versicherungen“)
 
 - Zuerst alle Personen anlegen (Name, Geburtsdatum, Familienstand, Schule/Studium/Beruf, Krankenversicherung, Einkommen) und den Haushalt (Wohnsituation, Wohnfläche, Autos, Hund, Kredit).
-- Dokumente im Ordner `Versicherungen` werden beim Ablegen automatisch von Gemini ausgelesen (Versicherer, versicherte Personen, Deckungssumme, Beitrag, Laufzeit, Auszahlung). Vorhandene Dokumente per Knopf – nur Dateinamen mit dem eingestellten Anfang (Standard `2026`).
+- Ausgelesen wird nur auf Anforderung (Knopf „Ordner Versicherungen auslesen“ bzw. „Jetzt auslesen“): neu abgelegte Versicherungsdokumente werden vorgemerkt, vorhandene nach Dateinamen-Anfang (Standard `2026`). Gemini liest Versicherer, versicherte Personen, Deckungssumme, Beitrag, Laufzeit und Auszahlung aus.
 - Je Person: Versicherung, Versicherer, wogegen, Höhe und in Klammern die Empfehlung; unterversichert/fehlend = dunkelgelb. Kapitalversicherungen mit Auszahlungsjahr und Summe.
 - „Änderungen“ zeigt kommende Ereignisse (▲ positiv / ▼ negativ), z. B. Volljährigkeit, Ende der Familienversicherung, Ausbildungsende, Auszahlungen, auslaufende Verträge.
 - Fehlende Angaben erscheinen als „Offene Fragen“ und lassen sich direkt beantworten; jeder Vertrag ist von Hand korrigierbar (korrigierte Felder werden beim erneuten Auslesen nicht überschrieben).
@@ -77,7 +77,7 @@ Beispiel: 20250315_Versicherungen_KFZ_Rechnung_Allianz.pdf
 |---|---|
 | Max. Dateigröße | 14 MB (Gemini erlaubt max. 20 MB pro Anfrage inkl. Base64) |
 | Formate | PDF, JPG, PNG, WEBP, GIF, HEIC |
-| Gemini Free Tier | 1.500 Analysen/Tag |
+| Gemini-Kontingent | abhängig vom Google-Tarif; die kostenlose Stufe hat niedrige Minuten- und Tageslimits |
 | Pause zwischen Dateien | 4,2 Sekunden (Rate-Limit-Schutz) |
 
 ---
@@ -118,8 +118,8 @@ Beispiel: 20250315_Versicherungen_KFZ_Rechnung_Allianz.pdf
 **„Ordner kann nicht geöffnet werden"**
 → Browser-Berechtigung prüfen (goldener Banner oben in der App klicken)
 
-**„Gemini API Fehler 429"**
-→ Rate Limit erreicht – 1 Minute warten, dann neu starten
+**„Gemini 429"**
+→ Die App sagt, ob das Minutenlimit (kurz warten) oder das Tageslimit (erst am nächsten Tag, ca. 9 Uhr deutscher Zeit) erreicht ist. Abhilfe bei häufigem Tageslimit: Guthaben aufladen oder anderen API Key eintragen.
 
 **„Gemini 402 – prepayment credits are depleted"**
 → Das Guthaben des Google-Projekts zum API Key ist aufgebraucht. Im Google AI Studio Guthaben aufladen oder unter Einstellungen → Gemini API Key einen anderen Key eintragen.

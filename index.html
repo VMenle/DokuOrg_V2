@@ -700,8 +700,29 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 // Kein SECRET im Frontend. Kein lokaler Algorithmus.
 // ══════════════════════════════════════════════
 const SUPABASE_VALIDATE_URL = 'https://qvvsuksdribtjkplaynu.supabase.co/functions/v1/validate-license';
-const APP_VERSION = '2026-11-22.7';
+const APP_VERSION = '2026-11-22.8';
 const GEMINI_REQUEST_DELAY_MS = 4200; // Gemini Free Tier: max 15 Req/Min → min. 4s Abstand
+
+// Kontingent-ID (z. B. …PerDay…) und Wartezeit stehen nur in den Details der Fehlerantwort
+function geminiFehlerDetails(err) {
+  const details = err.error?.details || [];
+  const quota = details.flatMap(d => d.violations || []).map(v => v.quotaId).filter(Boolean).join(',');
+  const retry = details.find(d => d.retryDelay)?.retryDelay;
+  return (quota ? ' [quota ' + quota + ']' : '') + (retry ? ' [retryDelay ' + retry + ']' : '');
+}
+
+// Verständliche Meldung zu Gemini-Fehler 429 (Minuten- oder Tageslimit)
+function geminiLimitMeldung(msg) {
+  const gratis = /free[_ ]?tier/i.test(msg) ? ' der kostenlosen Stufe' : '';
+  const sek = parseFloat((msg.match(/retry(?:Delay| in)\s*([\d.]+)\s*s/i) || [])[1]);
+  if (/per\s*day|PerDay|daily/i.test(msg)) {
+    return '⛔ Tageslimit' + gratis + ' bei Gemini erreicht (429). Weiter geht es erst morgen (Zurücksetzung um Mitternacht pazifischer Zeit, ca. 9 Uhr deutscher Zeit) – oder Guthaben aufladen bzw. anderen API Key eintragen.';
+  }
+  if (/per\s*minute|PerMinute/i.test(msg) || sek) {
+    return '⏸ Minutenlimit' + gratis + ' bei Gemini erreicht (429). Bitte ' + (sek ? Math.ceil(sek) + ' Sekunden' : 'etwa 1 Minute') + ' warten und erneut starten.';
+  }
+  return '⏸ Gemini-Kontingent erschöpft (429). Kurz warten und erneut starten; kommt die Meldung wieder, ist vermutlich das Tageslimit erreicht.';
+}
 let _licCheckAttempts = 0;
 const MAX_LIC_ATTEMPTS = 5;
 
@@ -1725,7 +1746,7 @@ async function runProcess(btn, {nurUnklar = false} = {}) {
             toast('💳 Gemini-Guthaben aufgebraucht (402). Bitte im Google AI Studio Guthaben aufladen oder einen anderen API Key eintragen. Alle Dateien liegen unverändert im _Eingang und werden beim nächsten Start verarbeitet.', 'err');
           } else if (statusCode === '429' || msg.includes('RESOURCE_EXHAUSTED')) {
             abbrechen = true;
-            toast('⏸ Gemini Kontingent erschöpft (429). Bitte 1 Minute warten, dann neu starten.', 'warn');
+            toast(geminiLimitMeldung(msg) + ' Alle übrigen Dateien bleiben im _Eingang.', 'warn');
           } else if (statusCode === '404') {
             abbrechen = true;
             toast('❌ Gemini-Modell nicht gefunden (404). Bitte Seite neu laden und API Key in Einstellungen prüfen.', 'err');
@@ -1839,7 +1860,7 @@ async function processFile(item, apiKey) {
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    const errMsg = err.error?.message || response.statusText || 'Unbekannter Fehler';
+    const errMsg = (err.error?.message || response.statusText || 'Unbekannter Fehler') + geminiFehlerDetails(err);
     throw new Error('Gemini ' + response.status + ': ' + errMsg);
   }
 
@@ -1919,10 +1940,7 @@ async function processFile(item, apiKey) {
     addToLog(name, tatsaecklicherName, katMatch.name, konfidenz, steuer, 'Automatisch', {...details, belegdatum: datum});
     if (tatsaecklicherName !== newName) toast('✓ ' + tatsaecklicherName + ' (umbenannt – Name existierte bereits)', 'warn');
     else toast('✓ ' + tatsaecklicherName, 'ok');
-    if (typeof vsNachAblage === 'function' && vsVersicherungsKategorie()?.folderName === katMatch.folderName) {
-      await sleep(GEMINI_REQUEST_DELAY_MS); // zweiter Gemini-Aufruf: Rate-Limit einhalten
-      await vsNachAblage(katMatch.folderName, tatsaecklicherName);
-    }
+    if (typeof vsVormerken === 'function') vsVormerken(katMatch.folderName, tatsaecklicherName);
     return 'abgelegt';
   }
   return alsUnklar(item, kategorie, art, typ, person, datum, steuer, unklarGrund, konfidenz, details);
@@ -2314,7 +2332,7 @@ async function resolveItem() {
     document.getElementById('queueOverlay').classList.remove('active');
     toast('✓ Abgelegt: ' + finalName, 'ok');
     btn.textContent = '✓ Ablegen'; btn.disabled = false;
-    if (typeof vsNachAblage === 'function') await vsNachAblage(folderName, finalName);
+    if (typeof vsVormerken === 'function') vsVormerken(folderName, finalName);
   } catch(e) {
     const veraltet = e.message === 'nicht im Eingangsordner' || e.message === 'andere Datei';
     const msg = e.message === 'andere Datei'
@@ -2398,7 +2416,7 @@ async function korrigiereLogEintrag() {
     renderAll();
     document.getElementById('queueOverlay').classList.remove('active');
     toast('✓ Korrigiert: ' + finalName, 'ok');
-    if (typeof vsNachAblage === 'function') await vsNachAblage(folderName, finalName);
+    if (typeof vsVormerken === 'function') vsVormerken(folderName, finalName);
   } catch(e) {
     toast('Korrektur fehlgeschlagen: ' + e.message + ' – an der Ablage wurde nichts verloren.', 'err');
   }
