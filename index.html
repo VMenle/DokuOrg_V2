@@ -959,14 +959,26 @@ if (!categories || categories.length === 0) {
 // Eigene Regeln (Vorrang im Prompt) und gelernte Korrekturen (Beispiele im Prompt)
 const STANDARD_REGELN = [{
   id: 'r_laura_studium', aktiv: true,
-  stichwoerter: 'Studium, Architektur',
+  stichwoerter: 'Laura, Studium, Architekturstudium',
   kategorie: 'Steuer', person: 'Laura',
-  hinweis: 'Auch sinnverwandt: Hochschule, Universität, Semesterbeitrag, Studiengebühren, Architekturstudium, Fachliteratur, Software oder Material fürs Studium.'
+  hinweis: 'Nur wenn Betreff oder Empfänger erkennbar auf Laura oder ihr Studium hinweisen (z. B. Hochschule, Semesterbeitrag, Studiengebühren, Immatrikulation, Fachliteratur oder Software fürs Studium). NICHT bei Architektenrechnungen, Bauleistungen, Handwerker- oder sonstigen Baurechnungen – diese normal einordnen.'
 }];
+// Frühere, vom Nutzer unveränderte Fassung der Laura-Regel
+const ALTE_LAURA_REGEL = {
+  stichwoerter: 'Studium, Architektur',
+  hinweis: 'Auch sinnverwandt: Hochschule, Universität, Semesterbeitrag, Studiengebühren, Architekturstudium, Fachliteratur, Software oder Material fürs Studium.'
+};
 let regeln = _loadSafe('ds_regeln', null);
 if (!Array.isArray(regeln)) {
   regeln = STANDARD_REGELN.map(r => ({...r}));
   try { localStorage.setItem('ds_regeln', JSON.stringify(regeln)); } catch(e) {}
+} else {
+  const laura = regeln.find(r => r.id === 'r_laura_studium');
+  if (laura && laura.stichwoerter === ALTE_LAURA_REGEL.stichwoerter && laura.hinweis === ALTE_LAURA_REGEL.hinweis) {
+    laura.stichwoerter = STANDARD_REGELN[0].stichwoerter;
+    laura.hinweis = STANDARD_REGELN[0].hinweis;
+    try { localStorage.setItem('ds_regeln', JSON.stringify(regeln)); } catch(e) {}
+  }
 }
 let korrekturen = _loadSafe('ds_korrekturen', []);
 const MAX_KORREKTUREN_IM_PROMPT = 30;
@@ -2892,6 +2904,7 @@ function regelnPromptTeil() {
       ' oder sinnverwandten Begriffen zu tun hat → kategorie: ' + r.kategorie +
       (r.person ? ', person: ' + r.person : '') +
       (r.hinweis ? '. Hinweis: ' + r.hinweis : '')).join('\n') +
+    '\nHinweise und Ausschlüsse (NICHT …) sind verbindlich. Im Zweifel die Regel NICHT anwenden.' +
     '\nTrifft eine Regel zu: kategorie und person genau wie angegeben setzen und regel_id auf die ID der Regel setzen.\n\n';
 }
 

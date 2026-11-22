@@ -37,7 +37,7 @@
 
 ### Eigene Regeln und Lernen aus Korrekturen
 
-- **Eigene Regeln** (Einstellungen): „Wenn das Dokument mit X zu tun hat → Kategorie Y, Person Z“. Regeln haben Vorrang; die KI prüft sinngemäß, ähnliche Begriffe zählen mit. Voreingestellt: *Studium, Architektur → Steuer, Person Laura*.
+- **Eigene Regeln** (Einstellungen): „Wenn das Dokument mit X zu tun hat → Kategorie Y, Person Z“. Regeln haben Vorrang; die KI prüft sinngemäß, ähnliche Begriffe zählen mit. Voreingestellt: *Laura, Studium, Architekturstudium → Steuer, Person Laura* – nur wenn Betreff oder Empfänger auf Laura bzw. ihr Studium hinweisen; Architekten- und Baurechnungen ausdrücklich nicht.
 - **Korrekturen**: Jede manuelle Zuordnung aus der Warteschlange und jede Korrektur im Protokoll (✏️) wird gespeichert. Die letzten 30 bekommt die KI als Beispiele mit.
 - **Regel-Vorschläge**: Wird dreimal gleich korrigiert, schlägt die App vor, daraus eine feste Regel zu machen.
 - **Korrigieren im Protokoll** verschiebt und benennt die Datei sicher um; inhaltsgleiche alte Steuer-Kopien werden entfernt, das Original in `_Archiv` bleibt.
