@@ -467,6 +467,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
           <a href="info.html" class="sidebar-ext-link" target="_blank">📖 Anleitung</a>
           <a href="landing.html" class="sidebar-ext-link" target="_blank">🏷 Landingpage</a>
           <a href="agb.html" class="sidebar-ext-link" target="_blank">⚖️ AGB &amp; Datenschutz</a>
+          <span class="sidebar-ext-link" id="appVersion" style="cursor:default;opacity:.7;"></span>
         </div>
       </div>
     </div>
@@ -698,6 +699,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 // Kein SECRET im Frontend. Kein lokaler Algorithmus.
 // ══════════════════════════════════════════════
 const SUPABASE_VALIDATE_URL = 'https://qvvsuksdribtjkplaynu.supabase.co/functions/v1/validate-license';
+const APP_VERSION = '2026-11-22.5';
 const GEMINI_REQUEST_DELAY_MS = 4200; // Gemini Free Tier: max 15 Req/Min → min. 4s Abstand
 let _licCheckAttempts = 0;
 const MAX_LIC_ATTEMPTS = 5;
@@ -1574,12 +1576,6 @@ function istTechnischerFehler(q) {
   return !!q.fehler || /^(Fehler:|Fehler bei Analyse|Timeout bei Analyse)/.test(q.reason || '');
 }
 
-// Steht genau diese Datei schon offen in der Warteschlange (echte Zuordnungsfrage)?
-function offenInQueue(name, f) {
-  return queue.some(q => q.status === 'offen' && q.name === name && !istTechnischerFehler(q) &&
-    (q.groesse === undefined || (q.groesse === f.size && q.geaendert === f.lastModified)));
-}
-
 async function runProcess(btn) {
   if (_prozessLaeuft) { toast('Prozess läuft bereits – bitte warten', 'warn'); return; }
   if (!await ensureWorkspace()) return;
@@ -1597,14 +1593,14 @@ async function runProcess(btn) {
 
   try {
     const files = [];
-    let wartenInQueue = 0, schonAbgelegt = 0;
+    let schonAbgelegt = 0;
     for await (const [name, handle] of eingangsHandle.entries()) {
       if (handle.kind === 'file') {
         const f = await handle.getFile();
         const allowed = ['application/pdf','image/jpeg','image/jpg','image/png','image/webp','image/gif','image/heic'];
         if (allowed.includes(f.type) || name.match(/\.(pdf|jpg|jpeg|png|webp|gif|heic)$/i)) {
+          // Bereits abgelegt (nur Löschen scheiterte) – erneute Analyse würde ein Duplikat ablegen
           if (istVerarbeitet(f)) { schonAbgelegt++; continue; }
-          if (offenInQueue(name, f)) { wartenInQueue++; continue; }
           files.push({name, handle, file:f});
         }
       }
@@ -1612,16 +1608,16 @@ async function runProcess(btn) {
     if (schonAbgelegt > 0) {
       toast(schonAbgelegt + ' Datei(en) im _Eingang sind bereits abgelegt (Kopie in Kategorie + _Archiv) und konnten nur nicht entfernt werden – bitte im _Eingang manuell löschen.', 'warn');
     }
-    // Technisch gescheiterte Einträge werden jetzt neu versucht – alte Einträge entfernen
+    // Jeder Start analysiert alle Dateien neu: alte offene Einträge dieser Dateien
+    // und technisch gescheiterte Einträge werden durch das neue Ergebnis ersetzt
+    const namenImEingang = new Set(files.map(x => x.name));
     const vorher = queue.length;
-    queue = queue.filter(q => !(q.status === 'offen' && istTechnischerFehler(q)));
+    queue = queue.filter(q => !(q.status === 'offen' && (namenImEingang.has(q.name) || istTechnischerFehler(q))));
     if (queue.length !== vorher) { saveState(); renderQueue(); }
 
     if (files.length === 0) {
-      info.textContent = wartenInQueue > 0
-        ? 'Keine neuen Dokumente. ' + wartenInQueue + ' warten in der Warteschlange auf manuelle Zuordnung.'
-        : 'Keine neuen Dokumente im Eingangsordner "_Eingang".';
-      toast(wartenInQueue > 0 ? 'Keine neuen Dokumente' : 'Eingangsordner ist leer', 'info');
+      info.textContent = 'Keine Dokumente im Eingangsordner "_Eingang".';
+      toast('Eingangsordner ist leer', 'info');
     } else {
       const sekundaerExists = categories.some(k => k.isSecondary);
       if (!sekundaerExists) {
@@ -2082,7 +2078,9 @@ function renderQueue() {
   badge.style.display = open.length > 0 ? 'inline-flex' : 'none';
 
   if (open.length === 0) { el.innerHTML = '<div class="empty">✅ Keine offenen Dokumente</div>'; return; }
-  el.innerHTML = open.map(q =>
+  el.innerHTML =
+    '<div class="vs-klein" style="margin-bottom:10px;">Diese Dateien liegen weiter im _Eingang und werden bei jedem Start neu analysiert – oder hier manuell zuordnen.</div>' +
+    open.map(q =>
     '<div class="q-card">' +
     '<div class="q-card-name">📄 ' + esc(q.name) + '</div>' +
     '<div class="q-card-reason">' + esc(q.reason || 'Unklare Kategorie') + '</div>' +
@@ -3105,6 +3103,9 @@ function toast(msg, type) {
 // EVENT LISTENERS – ersetzt alle inline onclick/oninput/onchange
 // ══════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function() {
+
+  const versionEl = document.getElementById('appVersion');
+  if (versionEl) versionEl.textContent = 'Version ' + APP_VERSION;
 
   // Lizenz-Screen
   const licInput = document.getElementById('licInput');
