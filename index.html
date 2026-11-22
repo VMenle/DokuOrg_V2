@@ -5,7 +5,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://qvvsuksdribtjkplaynu.supabase.co https://generativelanguage.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' blob: data:; connect-src 'self' https://qvvsuksdribtjkplaynu.supabase.co https://generativelanguage.googleapis.com; font-src https://fonts.gstatic.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://qvvsuksdribtjkplaynu.supabase.co https://generativelanguage.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' blob: data:; connect-src 'self' https://qvvsuksdribtjkplaynu.supabase.co https://generativelanguage.googleapis.com https://api.anthropic.com; font-src https://fonts.gstatic.com;">
 <title>DokumentenOrganizer</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1f2d'/%3E%3Crect x='6' y='8' width='14' height='3' rx='1.5' fill='%23d4820a'/%3E%3Crect x='6' y='13' width='20' height='3' rx='1.5' fill='%23f0ebe5'/%3E%3Crect x='6' y='18' width='20' height='3' rx='1.5' fill='%23f0ebe5'/%3E%3Crect x='6' y='23' width='12' height='3' rx='1.5' fill='%232a9d8f'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -610,16 +610,25 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
           <!-- Spalte 2: API Key + Protokoll -->
           <div>
             <div class="card">
-              <div class="card-title" style="margin-bottom:14px;">Gemini API Key</div>
-              <div class="fg"><label>Neuer Key (leer lassen um bestehenden zu behalten)</label><input type="password" id="newApiKey" placeholder="AIza..." autocomplete="new-password"></div>
+              <div class="card-title" style="margin-bottom:14px;">KI-Anbieter</div>
+              <div class="fg"><label for="kiAnbieterSelect">Anbieter</label><select id="kiAnbieterSelect"><option value="gemini">Google Gemini</option><option value="claude">Anthropic Claude</option></select></div>
+              <div id="claudeBereich" style="display:none;">
+                <div class="fg"><label for="claudeKeyInput">Claude API Key (leer lassen um bestehenden zu behalten)</label><input type="password" id="claudeKeyInput" placeholder="sk-ant-..." autocomplete="new-password"></div>
+                <div class="fg"><label for="claudeModellSelect">Claude-Modell</label><select id="claudeModellSelect"></select></div>
+              </div>
+              <button class="btn btn-primary btn-sm" id="saveAnbieterBtn">Anbieter speichern &amp; testen</button>
+              <div id="anbieterHint" style="margin-top:8px;font-size:12px;color:#8ba4b8;line-height:1.5;"></div>
+              <div id="geminiBereich" style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">
+              <div class="fg"><label>Gemini API Key (leer lassen um bestehenden zu behalten)</label><input type="password" id="newApiKey" placeholder="AIza..." autocomplete="new-password"></div>
               <button class="btn btn-primary btn-sm" id="updateApiKeyBtn">Speichern</button>
               <div id="apiKeyHint" style="margin-top:8px;font-size:12px;color:#8ba4b8;font-family:var(--mono);"></div>
-              <div class="fg" style="margin-top:16px;"><label for="modellSelect">KI-Modell</label><select id="modellSelect"></select></div>
+              <div class="fg" style="margin-top:16px;"><label for="modellSelect">Gemini-Modell</label><select id="modellSelect"></select></div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;">
                 <button class="btn btn-primary btn-sm" id="saveModellBtn">Modell speichern</button>
                 <button class="btn btn-ghost btn-sm" id="ladeModelleBtn">Verfügbare Modelle laden</button>
               </div>
-              <div id="modellHint" style="margin-top:8px;font-size:12px;color:#8ba4b8;line-height:1.5;">„Verfügbare Modelle laden“ fragt bei Google ab, welche Modelle dein API Key nutzen darf.</div>
+              <div id="modellHint" style="margin-top:8px;font-size:12px;color:#8ba4b8;line-height:1.5;">„Verfügbare Modelle laden“ fragt bei Google ab, welche Modelle dein API Key nutzen darf. Gespeichert wird ein Modell erst nach erfolgreichem Testaufruf.</div>
+              </div>
             </div>
 
             <div class="card">
@@ -706,7 +715,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 // Kein SECRET im Frontend. Kein lokaler Algorithmus.
 // ══════════════════════════════════════════════
 const SUPABASE_VALIDATE_URL = 'https://qvvsuksdribtjkplaynu.supabase.co/functions/v1/validate-license';
-const APP_VERSION = '2026-11-22.10';
+const APP_VERSION = '2026-11-22.11';
 const GEMINI_REQUEST_DELAY_MS = 4200; // Gemini Free Tier: max 15 Req/Min → min. 4s Abstand
 
 // ── KI-Modell (in den Einstellungen wählbar) ──
@@ -715,13 +724,10 @@ function geminiModell() {
   const m = localStorage.getItem('ds_gemini_modell') || '';
   return /^[a-z0-9][a-z0-9.\-]*$/i.test(m) ? m : STANDARD_MODELL;
 }
-function geminiUrl() {
-  return 'https://generativelanguage.googleapis.com/v1beta/models/' + geminiModell() + ':generateContent';
-}
 // 2.5-Flash-Modelle: Denken abschalten (schneller, günstiger). Andere Modelle denken ggf. mit –
 // dafür mehr Ausgabe-Tokens, damit die JSON-Antwort nicht abgeschnitten wird.
-function geminiGenConfig(maxOut, extra) {
-  const cfg = /^gemini-2\.5-flash/.test(geminiModell())
+function geminiGenConfig(maxOut, extra, modell) {
+  const cfg = /^gemini-2\.5-flash/.test(modell || geminiModell())
     ? {thinkingConfig:{thinkingBudget:0}, temperature:0.1, maxOutputTokens:maxOut}
     : {temperature:0.1, maxOutputTokens:Math.max(maxOut, 8192)};
   return Object.assign(cfg, extra || {});
@@ -763,14 +769,131 @@ async function ladeModelle() {
   }
 }
 
-function speichereModell() {
+async function speichereModell() {
   const m = document.getElementById('modellSelect').value;
+  const hint = document.getElementById('modellHint');
   if (!/^[a-z0-9][a-z0-9.\-]*$/i.test(m)) return;
-  const geladen = _loadSafe('ds_gemini_modelle', []);
-  if (geladen.length && !geladen.includes(m)) { toast('„' + m + '“ ist für deinen Key nicht verfügbar – bitte ein Modell aus der Liste wählen.', 'warn'); return; }
+  hint.textContent = '⏳ Teste „' + m + '“ …';
+  try {
+    await kiAnfrage(null, null, 'Antworte nur mit OK.', {anbieter: 'gemini', modell: m, maxTokens: 16, timeoutMs: 20000});
+  } catch(e) {
+    hint.textContent = '✗ „' + m + '“ funktioniert mit deinem Key nicht – nicht gespeichert. Google meldet: ' + e.message.replace(/^Gemini /, '');
+    return;
+  }
   localStorage.setItem('ds_gemini_modell', m);
-  document.getElementById('modellHint').textContent = '✓ Gespeichert: ' + m + ' – gilt ab dem nächsten Start.';
-  toast('KI-Modell: ' + m, 'ok');
+  hint.textContent = '✓ Getestet und gespeichert: ' + m + ' – gilt ab dem nächsten Start.';
+  toast('Gemini-Modell: ' + m, 'ok');
+}
+
+// ── KI-Anbieter: Gemini oder Claude ──
+const CLAUDE_MODELLE = {'claude-haiku-5-5': 'Claude Haiku 5.5 (Standard, günstig)', 'claude-sonnet-5-5': 'Claude Sonnet 5.5 (genauer, teurer)'};
+const CLAUDE_STANDARD_MODELL = 'claude-haiku-5-5';
+const CLAUDE_BILDTYPEN = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+function kiAnbieter() { return localStorage.getItem('ds_ki_anbieter') === 'claude' ? 'claude' : 'gemini'; }
+function kiName() { return kiAnbieter() === 'claude' ? 'Claude' : 'Gemini'; }
+function kiKey() { return localStorage.getItem(kiAnbieter() === 'claude' ? 'ds_claude_key' : 'ds_api_key') || ''; }
+function claudeModell() { const m = localStorage.getItem('ds_claude_modell'); return CLAUDE_MODELLE[m] ? m : CLAUDE_STANDARD_MODELL; }
+function kannKiLesen(mimeType) { return kiAnbieter() !== 'claude' || mimeType === 'application/pdf' || CLAUDE_BILDTYPEN.includes(mimeType); }
+
+// Eine Anfrage an den gewählten Anbieter. Rückgabe: {text, grund}. Fehler: "Gemini|Claude <Status>: <Meldung>"
+async function kiAnfrage(base64, mimeType, prompt, {maxTokens = 1024, json = false, timeoutMs = 45000, anbieter, modell, key} = {}) {
+  anbieter = anbieter || kiAnbieter();
+  const claude = anbieter === 'claude';
+  const name = claude ? 'Claude' : 'Gemini';
+  key = key || localStorage.getItem(claude ? 'ds_claude_key' : 'ds_api_key');
+  if (!key) throw new Error(name + ' 401: Kein API Key für ' + name + ' eingetragen (Einstellungen)');
+  let url, headers, body;
+  if (claude) {
+    const inhalt = [];
+    if (base64) {
+      if (mimeType === 'application/pdf') inhalt.push({type: 'document', source: {type: 'base64', media_type: 'application/pdf', data: base64}});
+      else if (CLAUDE_BILDTYPEN.includes(mimeType)) inhalt.push({type: 'image', source: {type: 'base64', media_type: mimeType, data: base64}});
+      else throw new Error('Claude 415: Dateityp ' + mimeType + ' wird von Claude nicht unterstützt');
+    }
+    inhalt.push({type: 'text', text: prompt});
+    url = 'https://api.anthropic.com/v1/messages';
+    headers = {'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'};
+    // Wenig Nachdenken reicht zum Einordnen; Puffer, damit die JSON-Antwort nicht abgeschnitten wird
+    body = {model: modell || claudeModell(), max_tokens: Math.max(maxTokens * 4, 4096), output_config: {effort: 'low'},
+      messages: [{role: 'user', content: inhalt}]};
+  } else {
+    const m = modell || geminiModell();
+    url = 'https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent';
+    headers = {'Content-Type': 'application/json', 'x-goog-api-key': key};
+    const parts = base64 ? [{inline_data: {mime_type: mimeType, data: base64}}, {text: prompt}] : [{text: prompt}];
+    body = {contents: [{parts}], generationConfig: geminiGenConfig(maxTokens, json ? {responseMimeType: 'application/json'} : null, m)};
+  }
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetch(url, {method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal});
+  } catch(e) {
+    if (e.name === 'AbortError') throw new Error(name + ' Timeout (>' + Math.round(timeoutMs / 1000) + 's) – Netzwerk prüfen oder Datei zu groß');
+    throw new Error('Netzwerkfehler: ' + e.message);
+  } finally { clearTimeout(t); }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    let status = res.status;
+    let msg = err.error?.message || res.statusText || 'Unbekannter Fehler';
+    if (claude) {
+      if (/credit balance/i.test(msg)) status = 402;
+      const ra = res.headers.get('retry-after');
+      if (ra) msg += ' [retryDelay ' + ra + 's]';
+    } else {
+      msg += geminiFehlerDetails(err);
+    }
+    throw new Error(name + ' ' + status + ': ' + msg);
+  }
+  const data = await res.json();
+  if (claude) {
+    return {text: (data.content || []).filter(b => b.type === 'text').map(b => b.text).join(''), grund: data.stop_reason || ''};
+  }
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  return {text: parts.filter(p => p.text && !p.thought).map(p => p.text).join(''), grund: data.candidates?.[0]?.finishReason || ''};
+}
+
+function anbieterAnzeigen() {
+  const sel = document.getElementById('kiAnbieterSelect');
+  if (!sel) return;
+  sel.value = kiAnbieter();
+  const cm = document.getElementById('claudeModellSelect');
+  cm.innerHTML = Object.entries(CLAUDE_MODELLE).map(([k, l]) => '<option value="' + k + '"' + (k === claudeModell() ? ' selected' : '') + '>' + esc(l) + '</option>').join('');
+  document.getElementById('claudeBereich').style.display = sel.value === 'claude' ? '' : 'none';
+  document.getElementById('geminiBereich').style.display = sel.value === 'gemini' ? '' : 'none';
+  const k = localStorage.getItem('ds_claude_key');
+  document.getElementById('claudeKeyInput').placeholder = k ? 'gespeichert (…' + k.slice(-4) + ')' : 'sk-ant-...';
+}
+
+async function speichereAnbieter() {
+  const anbieter = document.getElementById('kiAnbieterSelect').value === 'claude' ? 'claude' : 'gemini';
+  const hint = document.getElementById('anbieterHint');
+  if (anbieter === 'gemini') {
+    if (!localStorage.getItem('ds_api_key')) { hint.textContent = 'Bitte zuerst einen Gemini API Key speichern.'; return; }
+    localStorage.setItem('ds_ki_anbieter', 'gemini');
+    hint.textContent = '✓ Anbieter: Google Gemini (' + geminiModell() + ')';
+    toast('KI-Anbieter: Gemini', 'ok');
+    return;
+  }
+  const neuerKey = document.getElementById('claudeKeyInput').value.trim();
+  const key = neuerKey || localStorage.getItem('ds_claude_key') || '';
+  if (!key.startsWith('sk-ant-')) { hint.textContent = '⚠ Claude API Key muss mit sk-ant- beginnen (console.anthropic.com → API Keys).'; return; }
+  const modell = document.getElementById('claudeModellSelect').value;
+  hint.textContent = '⏳ Teste Verbindung zu Claude …';
+  try {
+    await kiAnfrage(null, null, 'Antworte nur mit OK.', {anbieter: 'claude', modell, key, maxTokens: 16, timeoutMs: 30000});
+  } catch(e) {
+    hint.textContent = '✗ Test fehlgeschlagen – nichts geändert. Anthropic meldet: ' + e.message.replace(/^Claude /, '');
+    return;
+  }
+  localStorage.setItem('ds_claude_key', key);
+  localStorage.setItem('ds_claude_modell', modell);
+  localStorage.setItem('ds_ki_anbieter', 'claude');
+  document.getElementById('claudeKeyInput').value = '';
+  anbieterAnzeigen();
+  hint.textContent = '✓ Getestet und aktiv: ' + CLAUDE_MODELLE[modell] + ' – gilt ab dem nächsten Start.';
+  toast('KI-Anbieter: Claude', 'ok');
 }
 
 // Kontingent-ID (z. B. …PerDay…) und Wartezeit stehen nur in den Details der Fehlerantwort
@@ -783,15 +906,16 @@ function geminiFehlerDetails(err) {
 
 // Verständliche Meldung zu Gemini-Fehler 429 (Minuten- oder Tageslimit)
 function geminiLimitMeldung(msg) {
+  const ki = /^Claude/.test(msg) ? 'Claude' : 'Gemini';
   const gratis = /free[_ ]?tier/i.test(msg) ? ' der kostenlosen Stufe' : '';
   const sek = parseFloat((msg.match(/retry(?:Delay| in)\s*([\d.]+)\s*s/i) || [])[1]);
   if (/per\s*day|PerDay|daily/i.test(msg)) {
-    return '⛔ Tageslimit' + gratis + ' bei Gemini erreicht (429). Weiter geht es erst morgen (Zurücksetzung um Mitternacht pazifischer Zeit, ca. 9 Uhr deutscher Zeit) – oder Guthaben aufladen bzw. anderen API Key eintragen.';
+    return '⛔ Tageslimit' + gratis + ' bei ' + ki + ' erreicht (429). Weiter geht es erst morgen (Zurücksetzung um Mitternacht pazifischer Zeit, ca. 9 Uhr deutscher Zeit) – oder Guthaben aufladen bzw. anderen API Key eintragen.';
   }
-  if (/per\s*minute|PerMinute/i.test(msg) || sek) {
-    return '⏸ Minutenlimit' + gratis + ' bei Gemini erreicht (429). Bitte ' + (sek ? Math.ceil(sek) + ' Sekunden' : 'etwa 1 Minute') + ' warten und erneut starten.';
+  if (/per[\s-]*minute|PerMinute/i.test(msg) || sek) {
+    return '⏸ Minutenlimit' + gratis + ' bei ' + ki + ' erreicht (429). Bitte ' + (sek ? Math.ceil(sek) + ' Sekunden' : 'etwa 1 Minute') + ' warten und erneut starten.';
   }
-  return '⏸ Gemini-Kontingent erschöpft (429). Kurz warten und erneut starten; kommt die Meldung wieder, ist vermutlich das Tageslimit erreicht.';
+  return '⏸ ' + ki + '-Kontingent erschöpft (429). Kurz warten und erneut starten; kommt die Meldung wieder, ist vermutlich das Tageslimit erreicht.';
 }
 let _licCheckAttempts = 0;
 const MAX_LIC_ATTEMPTS = 5;
@@ -1167,7 +1291,7 @@ async function initApp() {
       showScreen('licenseScreen'); return;
     }
   }
-  const apiKey = localStorage.getItem('ds_api_key');
+  const apiKey = localStorage.getItem('ds_api_key') || localStorage.getItem('ds_claude_key');
   const hasFolder = localStorage.getItem('ds_workspace_name');
   if (!apiKey || !hasFolder) { showScreen('setupScreen'); return; }
   showScreen('mainScreen');
@@ -1628,7 +1752,7 @@ function showPage(id, btn) {
   if (btn) btn.classList.add('active');
   if (id === 'dashboard') { renderDashboard(); renderFolderView(); }
   if (id === 'queue') unklarAbgleich();
-  if (id === 'einstellungen') { initKonfidenzSlider(); renderRegeln(); modellAuswahlFuellen(); }
+  if (id === 'einstellungen') { initKonfidenzSlider(); renderRegeln(); modellAuswahlFuellen(); anbieterAnzeigen(); }
   if (id === 'versicherungen' && typeof renderVersicherungen === 'function') renderVersicherungen();
 }
 
@@ -1720,8 +1844,8 @@ async function unklarAbgleich() {
 async function runProcess(btn, {nurUnklar = false} = {}) {
   if (_prozessLaeuft) { toast('Prozess läuft bereits – bitte warten', 'warn'); return; }
   if (!await ensureWorkspace()) return;
-  const apiKey = localStorage.getItem('ds_api_key');
-  if (!apiKey) { toast('Bitte zuerst Gemini API Key eintragen (Einstellungen → API Key)', 'warn'); return; }
+  const apiKey = kiKey();
+  if (!apiKey) { toast('Bitte zuerst den API Key für ' + kiName() + ' eintragen (Einstellungen → KI-Anbieter)', 'warn'); return; }
   if (categories.length === 0) { toast('Bitte zuerst mindestens eine Kategorie anlegen (Kategorien-Tab)', 'warn'); return; }
 
   _prozessLaeuft = true;
@@ -1800,12 +1924,12 @@ async function runProcess(btn, {nurUnklar = false} = {}) {
         bar.style.width = Math.round((done / files.length) * 100) + '%';
 
         try {
-          if (await processFile(item, apiKey) === 'abgelegt') abgelegt++;
+          if (await processFile(item) === 'abgelegt') abgelegt++;
         } catch(e) {
           fehler++;
           console.error('Fehler bei', item.name, ':', e);
           const msg = e.message || '';
-          const statusCode = msg.match(/Gemini (\d+):/)?.[1] || '';
+          const statusCode = msg.match(/(?:Gemini|Claude) (\d+):/)?.[1] || '';
 
           // Dateifehler verlieren beim Weiterreichen ihren Typ – daher Ordner direkt prüfen
           if (!await workspaceErreichbar()) {
@@ -1813,7 +1937,7 @@ async function runProcess(btn, {nurUnklar = false} = {}) {
             verbindungVerloren('Ordner-Verbindung während der Verarbeitung verloren. „' + item.name + '“ und alle restlichen Dateien liegen unverändert im _Eingang.');
           } else if (statusCode === '402' || /prepayment|credits are depleted|billing/i.test(msg)) {
             abbrechen = true;
-            toast('💳 Gemini-Guthaben aufgebraucht (402). Bitte im Google AI Studio Guthaben aufladen oder einen anderen API Key eintragen. Alle Dateien liegen unverändert im _Eingang und werden beim nächsten Start verarbeitet.', 'err');
+            toast('💳 ' + kiName() + '-Guthaben aufgebraucht (402). Bitte ' + (kiAnbieter() === 'claude' ? 'unter console.anthropic.com → Billing' : 'im Google AI Studio') + ' Guthaben aufladen oder einen anderen API Key eintragen. Alle Dateien liegen unverändert im _Eingang und werden beim nächsten Start verarbeitet.', 'err');
           } else if (statusCode === '429' || msg.includes('RESOURCE_EXHAUSTED')) {
             abbrechen = true;
             toast(geminiLimitMeldung(msg) + ' Alle übrigen Dateien bleiben im _Eingang.', 'warn');
@@ -1881,7 +2005,7 @@ async function runProcess(btn, {nurUnklar = false} = {}) {
   setTimeout(() => { progress.classList.remove('show'); bar.style.width='0%'; }, 3000);
 }
 
-async function processFile(item, apiKey) {
+async function processFile(item) {
   const {name, handle, file} = item;
 
   // Dateigröße prüfen (max 15MB)
@@ -1894,54 +2018,14 @@ async function processFile(item, apiKey) {
   const base64 = arrayBufferToBase64(ab);
   const mimeType = file.type || guessMime(name);
 
-  // Gemini analysieren – mit Timeout-Schutz (45 Sekunden)
+  if (!kannKiLesen(mimeType)) {
+    return alsUnklar(item, '', '', '', '', '', false, 'Dateityp ' + mimeType + ' kann ' + kiName() + ' nicht lesen (z. B. HEIC) – bitte manuell zuordnen oder als JPG/PDF speichern.', 0);
+  }
   const prompt = buildPrompt(categories);
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45000);
-
-  let response;
-  try {
-    response = await fetch(
-      geminiUrl(),
-      {
-        method:'POST',
-        headers:{'Content-Type':'application/json', 'x-goog-api-key': apiKey},
-        body: JSON.stringify({
-          contents:[{parts:[
-            {inline_data:{mime_type:mimeType, data:base64}},
-            {text:prompt}
-          ]}],
-          generationConfig: geminiGenConfig(1024)
-        }),
-        signal: controller.signal
-      }
-    );
-  } catch(e) {
-    clearTimeout(timeoutId);
-    if (e.name === 'AbortError') throw new Error('Gemini Timeout (>45s) – Netzwerk prüfen oder Datei zu groß');
-    throw new Error('Netzwerkfehler: ' + e.message);
-  }
-  clearTimeout(timeoutId);
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    const errMsg = (err.error?.message || response.statusText || 'Unbekannter Fehler') + geminiFehlerDetails(err);
-    throw new Error('Gemini ' + response.status + ': ' + errMsg);
-  }
-
-  const data = await response.json();
-
-  // Alle text-Parts zusammensammeln (Thinking-Modelle können mehrere Parts liefern)
-  const parts = data.candidates?.[0]?.content?.parts || [];
-  const rawText = parts
-    .filter(p => p.text && !p.thought)  // 'thought' = Thinking-Teil, den ignorieren
-    .map(p => p.text)
-    .join('') || '';
-
+  const antwort = await kiAnfrage(base64, mimeType, prompt, {maxTokens: 1024});
+  const rawText = antwort.text;
   if (!rawText) {
-    const reason = data.candidates?.[0]?.finishReason || 'UNKNOWN';
-    return alsUnklar(item, '', '', '', '', '', false, 'Gemini gab keine Antwort zurück (finishReason: ' + reason + ')', 0);
+    return alsUnklar(item, '', '', '', '', '', false, kiName() + ' gab keine Antwort zurück (Grund: ' + (antwort.grund || 'unbekannt') + ')', 0);
   }
 
   // JSON parsen
@@ -2894,7 +2978,7 @@ function deactivateLicense() {
     ['ds_queue','ds_log','ds_categories','ds_api_key','ds_workspace_name',
      'ds_categories_version','ds_konfidenz','ds_folder_consent',
      'ds_regeln','ds_korrekturen','ds_verarbeitet',
-     'ds_haushalt','ds_policen','ds_vs_werte','ds_vs_gelesen','ds_vs_erledigt','ds_vs_ausstehend'].forEach(k => localStorage.removeItem(k));
+     'ds_haushalt','ds_policen','ds_vs_werte','ds_vs_gelesen','ds_vs_erledigt','ds_vs_ausstehend','ds_claude_key','ds_ki_anbieter','ds_claude_modell','ds_gemini_modell','ds_gemini_modelle'].forEach(k => localStorage.removeItem(k));
     queue = []; log = []; categories = []; regeln = []; korrekturen = [];
     toast('Alle Daten gelöscht', 'ok');
   } else {
@@ -3377,6 +3461,11 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('saveKonfidenzBtn')?.addEventListener('click', saveKonfidenz);
   document.getElementById('updateApiKeyBtn')?.addEventListener('click', updateApiKey);
   document.getElementById('saveModellBtn')?.addEventListener('click', speichereModell);
+  document.getElementById('saveAnbieterBtn')?.addEventListener('click', speichereAnbieter);
+  document.getElementById('kiAnbieterSelect')?.addEventListener('change', e => {
+    document.getElementById('claudeBereich').style.display = e.target.value === 'claude' ? '' : 'none';
+    document.getElementById('geminiBereich').style.display = e.target.value === 'gemini' ? '' : 'none';
+  });
   document.getElementById('ladeModelleBtn')?.addEventListener('click', ladeModelle);
   document.getElementById('clearLogBtn')?.addEventListener('click', clearLog);
   document.getElementById('deactivateLicenseBtn')?.addEventListener('click', deactivateLicense);

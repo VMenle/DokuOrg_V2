@@ -426,28 +426,7 @@ function vsExtraktionsPrompt() {
 }
 
 async function vsGemini(base64, mimeType) {
-  const apiKey = localStorage.getItem('ds_api_key');
-  if (!apiKey) throw new Error('Kein Gemini API Key');
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), 60000);
-  let res;
-  try {
-    res = await fetch(geminiUrl(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: base64 } }, { text: vsExtraktionsPrompt() }] }],
-        generationConfig: geminiGenConfig(4096, { responseMimeType: 'application/json' })
-      }),
-      signal: controller.signal
-    });
-  } finally { clearTimeout(t); }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error('Gemini ' + res.status + ': ' + (err.error?.message || res.statusText) + geminiFehlerDetails(err));
-  }
-  const data = await res.json();
-  const text = (data.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join('');
+  const {text} = await kiAnfrage(base64, mimeType, vsExtraktionsPrompt(), { maxTokens: 4096, json: true, timeoutMs: 60000 });
   const m = text.replace(/```json\n?|```/g, '').match(/\{[\s\S]*\}/);
   if (!m) throw new Error('Antwort nicht lesbar');
   return JSON.parse(m[0]);
@@ -554,8 +533,8 @@ async function vsOrdnerAuslesen() {
       } catch (e) {
         fehler++;
         console.warn('Auslesen fehlgeschlagen:', name, e);
-        if (/Gemini (402|429|401|403)/.test(e.message)) {
-          toast(e.message.includes('402') ? '💳 Gemini-Guthaben aufgebraucht (402) – Auslesen abgebrochen. Nach dem Aufladen erneut starten.'
+        if (/(?:Gemini|Claude) (402|429|401|403)/.test(e.message)) {
+          toast(e.message.includes(' 402') ? '💳 Guthaben beim KI-Anbieter aufgebraucht (402) – Auslesen abgebrochen. Nach dem Aufladen erneut starten.'
             : e.message.includes('429') ? geminiLimitMeldung(e.message) + ' Noch nicht gelesene Dokumente bleiben vorgemerkt.'
             : 'Abgebrochen: ' + e.message.substring(0, 120), 'err');
           break;
@@ -681,7 +660,7 @@ function renderVersicherungen() {
 
   // Verwaltung
   html += '<div class="card"><div class="card-title" style="margin-bottom:10px;">Unterlagen & Verträge</div>' +
-    '<p style="font-size:13px;color:var(--text2);margin-bottom:10px;">Ausgelesen wird nur auf Anforderung (spart Gemini-Kontingent): vorgemerkte neue Versicherungsdokumente' + (vsAusstehend.length ? ' (<b>' + vsAusstehend.length + '</b>)' : '') + ' und vorhandene Dokumente, deren Name so beginnt:</p>' +
+    '<p style="font-size:13px;color:var(--text2);margin-bottom:10px;">Ausgelesen wird nur auf Anforderung (spart KI-Kontingent): vorgemerkte neue Versicherungsdokumente' + (vsAusstehend.length ? ' (<b>' + vsAusstehend.length + '</b>)' : '') + ' und vorhandene Dokumente, deren Name so beginnt:</p>' +
     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;"><span class="vs-klein">Dateiname beginnt mit</span><input type="text" id="vsPrefix" value="2026" style="width:90px;" class="vs-input">' +
     '<button class="btn btn-primary btn-sm" data-vs-action="scan">📂 Ordner Versicherungen auslesen</button></div><div id="vsScanInfo" class="vs-klein"></div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><button class="btn btn-ghost btn-sm" data-vs-action="person-neu">+ Person</button>' +

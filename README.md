@@ -27,6 +27,13 @@
    - **Tipp:** Google Drive / OneDrive Desktop-Ordner als Arbeitsordner → automatisches Backup
 5. Kategorien können bei Bedarf angepasst werden
 
+### KI-Anbieter (Einstellungen → KI-Anbieter)
+
+- **Google Gemini** (API Key `AIza…`, kostenlose Stufe möglich) oder **Anthropic Claude** (API Key `sk-ant-…`, nur bezahlt; Standard: Claude Haiku 5.5, alternativ Claude Sonnet 5.5).
+- „Anbieter speichern & testen“ bzw. „Modell speichern“ machen zuerst einen kurzen Testaufruf; gespeichert wird nur, was funktioniert – sonst erscheint die Begründung des Anbieters.
+- Claude liest PDF, JPG, PNG, GIF und WEBP; HEIC-Fotos landen in `_Unklar` (als JPG speichern).
+- Regeln, Korrekturen, `_Unklar` und Versicherungs-Check funktionieren mit beiden Anbietern.
+
 ### Dokumente verarbeiten
 
 1. Dokument (PDF, JPG, PNG, WEBP, GIF, HEIC) in den `_Eingang`-Ordner legen
