@@ -1039,16 +1039,7 @@ async function tryAutoReconnect() {
     try {
       const perm = await handle.queryPermission({ mode: 'readwrite' });
       if (perm === 'granted') {
-        // Berechtigung noch aktiv – direkt verbinden
-        workspaceHandle = handle;
-        localStorage.setItem('ds_workspace_name', handle.name);
-        eingangsHandle = await handle.getDirectoryHandle('_Eingang', {create:true});
-        document.getElementById('appStatusDot').className = 'status-dot ok';
-        document.getElementById('appStatusText').textContent = 'Bereit · ' + handle.name;
-        const fi = document.getElementById('folderInfo');
-        if (fi) fi.textContent = '✓ Verbunden: ' + handle.name;
-        if (banner) banner.style.display = 'none';
-        renderDashboard();
+        await _applyFolder(handle, {leise:true});
         return;
       } else if (perm === 'prompt') {
         // Einmalige Bestätigung nötig – Banner zeigen mit Hinweis
@@ -1079,38 +1070,180 @@ async function reconnectFolder() {
     try {
       const perm = await handle.requestPermission({ mode: 'readwrite' });
       if (perm === 'granted') {
-        await _applyFolder(handle);
-        return;
+        if (await _applyFolder(handle)) return;
       }
     } catch(e) { /* weiter zum Picker */ }
   }
   // Neu wählen – Consent nur beim allerersten Mal
   if (!await showFolderConsent()) return;
   try {
-    const newHandle = await window.showDirectoryPicker({mode:'readwrite'});
+    const picked = await window.showDirectoryPicker({mode:'readwrite'});
+    const newHandle = await validateWorkspace(picked);
+    if (!newHandle) return;
     await saveHandleToIDB(newHandle);
-    await _applyFolder(newHandle);
+    await _applyFolder(newHandle, {anlegen:true});
   } catch(e) {
     if (e.name !== 'AbortError') toast('Fehler beim Verbinden: ' + e.message, 'err');
   }
 }
 
-async function _applyFolder(handle) {
+// Ordner nur anlegen, wenn validateWorkspace() vorher bestätigt hat (anlegen:true).
+// Beim Wiederverbinden wird nie etwas angelegt.
+async function _applyFolder(handle, {anlegen = false, leise = false} = {}) {
+  if (anlegen) {
+    await handle.getDirectoryHandle('_Eingang', {create:true});
+    for (const kat of categories) {
+      try { await handle.getDirectoryHandle(kat.folderName, {create:true}); } catch(e) {}
+    }
+  }
+  try {
+    eingangsHandle = await handle.getDirectoryHandle('_Eingang', {create:false});
+  } catch(e) {
+    verbindungVerloren('Im Ordner „' + handle.name + '“ fehlt der Unterordner _Eingang. Bitte den richtigen Arbeitsordner wählen – es wurde nichts angelegt.');
+    return false;
+  }
   workspaceHandle = handle;
   localStorage.setItem('ds_workspace_name', handle.name);
-  eingangsHandle = await handle.getDirectoryHandle('_Eingang', {create:true});
-  for (const kat of categories) {
-    try { await handle.getDirectoryHandle(kat.folderName, {create:true}); } catch(e) {}
-  }
   const banner = document.getElementById('reconnectBanner');
   if (banner) banner.style.display = 'none';
-  document.getElementById('appStatusDot').className = 'status-dot ok';
-  document.getElementById('appStatusText').textContent = 'Bereit · ' + handle.name;
+  setAppStatus('ok', 'Bereit · ' + handle.name);
   const fi = document.getElementById('folderInfo');
   if (fi) fi.textContent = '✓ Verbunden: ' + handle.name;
-  toast('✓ Verbunden: ' + handle.name, 'ok');
+  if (!leise) toast('✓ Verbunden: ' + handle.name, 'ok');
   renderDashboard();
   renderFolderView();
+  return true;
+}
+
+function setAppStatus(art, text) {
+  document.getElementById('appStatusDot').className = 'status-dot ' + art;
+  document.getElementById('appStatusText').textContent = text;
+}
+
+function verbindungVerloren(msg) {
+  workspaceHandle = null;
+  eingangsHandle = null;
+  const banner = document.getElementById('reconnectBanner');
+  const nameEl = document.getElementById('reconnectFolderName');
+  if (banner) banner.style.display = 'flex';
+  if (nameEl) nameEl.textContent = localStorage.getItem('ds_workspace_name') || '';
+  setAppStatus('warn', 'Ordner-Verbindung verloren');
+  const fi = document.getElementById('folderInfo');
+  if (fi) fi.textContent = '⚠ ' + msg;
+  toast(msg, 'err');
+}
+
+// Prüft, ob der Arbeitsordner noch erreichbar und beschreibbar ist.
+async function workspaceErreichbar() {
+  if (!workspaceHandle) return false;
+  try {
+    if (await workspaceHandle.queryPermission({mode:'readwrite'}) !== 'granted') return false;
+    await workspaceHandle.getDirectoryHandle('_Eingang', {create:false});
+    return true;
+  } catch(e) { return false; }
+}
+
+const RESERVIERTE_ORDNER = ['_eingang', '_papierkorb', '_unsicher'];
+
+async function _hatOrdner(parent, name) {
+  try { await parent.getDirectoryHandle(name, {create:false}); return true; }
+  catch(e) {
+    if (e.name === 'NotFoundError' || e.name === 'TypeMismatchError') return false;
+    throw e;
+  }
+}
+
+/**
+ * Prüft den gewählten Ordner, BEVOR irgendetwas angelegt wird.
+ * Rückgabe: zu verwendender Ordner-Handle oder null (Abbruch, nichts angelegt).
+ */
+async function validateWorkspace(handle) {
+  const nameLc = handle.name.toLowerCase();
+  const istUnterordner = RESERVIERTE_ORDNER.includes(nameLc) ||
+    categories.some(k => k.folderName.toLowerCase() === nameLc);
+  if (istUnterordner) {
+    await showChoiceDialog('⛔ Falscher Ordner gewählt',
+      'Du hast den Unterordner <b>' + esc(handle.name) + '</b> gewählt.<br><br>' +
+      'Bitte den <b>übergeordneten</b> Arbeitsordner wählen – also den Ordner, in dem <b>_Eingang</b> und die Kategorieordner liegen.<br><br>' +
+      'Es wurde nichts angelegt.',
+      [{label:'OK', value:'ok', primary:true}]);
+    return null;
+  }
+
+  const bisher = localStorage.getItem('ds_workspace_name');
+  const wechselHinweis = (bisher && bisher !== handle.name)
+    ? '<br><br>⚠ Bisher verbunden war <b>' + esc(bisher) + '</b>. Dokumente dort bleiben unverändert dort liegen.'
+    : '';
+
+  const hatEingang = await _hatOrdner(handle, '_Eingang');
+  let katTreffer = 0;
+  for (const k of categories) if (await _hatOrdner(handle, k.folderName)) katTreffer++;
+
+  // Fall 1: Struktur existiert bereits → nur verbinden
+  if (hatEingang) {
+    if (!wechselHinweis) return handle;
+    const r = await showChoiceDialog('Arbeitsordner wechseln?',
+      'Neuer Arbeitsordner: <b>' + esc(handle.name) + '</b> (Struktur bereits vorhanden).' + wechselHinweis,
+      [{label:'Abbrechen', value:'nein'}, {label:'Wechseln', value:'ja', primary:true}]);
+    return r === 'ja' ? handle : null;
+  }
+
+  // Fall 2: Kategorieordner da, nur _Eingang fehlt
+  if (katTreffer >= 2) {
+    const r = await showChoiceDialog('_Eingang fehlt',
+      'In <b>' + esc(handle.name) + '</b> gibt es ' + katTreffer + ' Kategorieordner, aber keinen <b>_Eingang</b>.<br><br>Nur <b>_Eingang</b> neu anlegen?' + wechselHinweis,
+      [{label:'Abbrechen', value:'nein'}, {label:'_Eingang anlegen', value:'ja', primary:true}]);
+    return r === 'ja' ? handle : null;
+  }
+
+  // Fall 3: Struktur liegt eine Ebene tiefer → diesen Unterordner verwenden statt zweite Struktur anzulegen
+  const kandidaten = [];
+  for await (const [, h] of handle.entries()) {
+    if (h.kind === 'directory' && await _hatOrdner(h, '_Eingang')) kandidaten.push(h);
+    if (kandidaten.length >= 5) break;
+  }
+  if (kandidaten.length > 0) {
+    const buttons = kandidaten.map((h, i) => ({label:'„' + h.name + '“ verwenden', value:String(i), primary:i === 0}));
+    buttons.push({label:'Abbrechen', value:'nein'});
+    const r = await showChoiceDialog('⚠ Bestehende Struktur gefunden',
+      'In <b>' + esc(handle.name) + '</b> liegt kein _Eingang – aber in einem Unterordner existiert bereits eine Struktur.<br><br>' +
+      'Damit keine zweite Struktur entsteht, bitte diesen Unterordner verwenden:',
+      buttons);
+    if (r === null || r === 'nein') return null;
+    return kandidaten[parseInt(r)] || null;
+  }
+
+  // Fall 4: Leerer/fremder Ordner → nur nach ausdrücklicher Bestätigung anlegen
+  const liste = ['_Eingang'].concat(categories.map(k => k.folderName)).map(esc).join(', ');
+  const r = await showChoiceDialog('Neue Ordnerstruktur anlegen?',
+    'Im Ordner <b>' + esc(handle.name) + '</b> wird angelegt:<br><span style="font-family:var(--mono);font-size:12px;">' + liste + '</span><br><br>' +
+    'Bestehende Dateien werden nicht verändert.' + wechselHinweis,
+    [{label:'Abbrechen', value:'nein'}, {label:'Anlegen', value:'ja', primary:true}]);
+  return r === 'ja' ? handle : null;
+}
+
+// Modal mit Buttons. buttons: [{label, value, primary}] → Promise<value>
+function showChoiceDialog(titel, htmlText, buttons) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9000;display:flex;align-items:center;justify-content:center;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:28px 30px;max-width:480px;width:94vw;';
+    box.innerHTML = '<h3 style="font-size:16px;font-weight:700;margin-bottom:12px;">' + esc(titel) + '</h3>' +
+      '<p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px;">' + htmlText + '</p>';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;';
+    buttons.forEach(b => {
+      const btn = document.createElement('button');
+      btn.className = 'btn ' + (b.primary ? 'btn-primary' : 'btn-ghost');
+      btn.textContent = b.label;
+      btn.onclick = () => { document.body.removeChild(overlay); resolve(b.value); };
+      row.appendChild(btn);
+    });
+    box.appendChild(row);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+  });
 }
 
 function showFolderConsent() {
@@ -1202,11 +1335,11 @@ function setupSaveApiKey() {
 async function setupSelectFolder() {
   if (!await showFolderConsent()) return;
   try {
-    const handle = await window.showDirectoryPicker({mode:'readwrite'});
-    workspaceHandle = handle;
-    localStorage.setItem('ds_workspace_name', handle.name);
+    const picked = await window.showDirectoryPicker({mode:'readwrite'});
+    const handle = await validateWorkspace(picked);
+    if (!handle) return;
     await saveHandleToIDB(handle);
-    eingangsHandle = await handle.getDirectoryHandle('_Eingang', {create:true});
+    if (!await _applyFolder(handle, {anlegen:true, leise:true})) return;
     const st = document.getElementById('folderStatus');
     st.className = 'step-status ok';
     st.textContent = '✓ Ordner: ' + handle.name;
@@ -1236,20 +1369,38 @@ async function finishSetup() {
 async function openFolder() {
   if (!await showFolderConsent()) return;
   try {
-    const handle = await window.showDirectoryPicker({mode:'readwrite'});
+    const picked = await window.showDirectoryPicker({mode:'readwrite'});
+    const handle = await validateWorkspace(picked);
+    if (!handle) return;
     await saveHandleToIDB(handle);
-    await _applyFolder(handle);
+    await _applyFolder(handle, {anlegen:true});
   } catch(e) {
     if (e.name !== 'AbortError') toast('Fehler: ' + e.message, 'err');
   }
 }
 
+// Vor jeder Dateioperation: Berechtigung + Existenz prüfen, nie etwas anlegen.
 async function ensureWorkspace() {
-  if (workspaceHandle) {
-    try { await workspaceHandle.getDirectoryHandle('_Eingang', {create:true}); return true; } catch(e) {}
+  if (!workspaceHandle) {
+    verbindungVerloren('Kein Arbeitsordner verbunden – bitte im orangen Banner oben verbinden.');
+    return false;
   }
-  toast('Bitte zuerst den Arbeitsordner verbinden (Einstellungen → Ordner neu verbinden)', 'warn');
-  return false;
+  const name = workspaceHandle.name;
+  try {
+    let perm = await workspaceHandle.queryPermission({mode:'readwrite'});
+    if (perm !== 'granted') perm = await workspaceHandle.requestPermission({mode:'readwrite'});
+    if (perm !== 'granted') {
+      verbindungVerloren('Zugriff auf „' + name + '“ wurde nicht erlaubt. Bitte neu verbinden.');
+      return false;
+    }
+    eingangsHandle = await workspaceHandle.getDirectoryHandle('_Eingang', {create:false});
+    return true;
+  } catch(e) {
+    verbindungVerloren(e.name === 'NotFoundError'
+      ? 'Ordner „' + name + '“ oder sein _Eingang wurde nicht gefunden (verschoben, umbenannt oder gelöscht?). Bitte neu verbinden.'
+      : 'Ordner „' + name + '“ nicht erreichbar: ' + e.message);
+    return false;
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -1306,7 +1457,6 @@ async function runProcess(btn) {
   progress.classList.add('show');
 
   try {
-    eingangsHandle = await workspaceHandle.getDirectoryHandle('_Eingang', {create:true});
     const files = [];
     for await (const [name, handle] of eingangsHandle.entries()) {
       if (handle.kind === 'file') {
@@ -1345,7 +1495,11 @@ async function runProcess(btn) {
           const msg = e.message || '';
           const statusCode = msg.match(/Gemini (\d+):/)?.[1] || '';
 
-          if (statusCode === '429' || msg.includes('RESOURCE_EXHAUSTED')) {
+          // Dateifehler verlieren beim Weiterreichen ihren Typ – daher Ordner direkt prüfen
+          if (!await workspaceErreichbar()) {
+            abbrechen = true;
+            verbindungVerloren('Ordner-Verbindung während der Verarbeitung verloren. „' + item.name + '“ und alle restlichen Dateien liegen unverändert im _Eingang.');
+          } else if (statusCode === '429' || msg.includes('RESOURCE_EXHAUSTED')) {
             abbrechen = true;
             toast('⏸ Gemini Kontingent erschöpft (429). Bitte 1 Minute warten, dann neu starten.', 'warn');
           } else if (statusCode === '404') {
@@ -1387,12 +1541,15 @@ async function runProcess(btn) {
       renderFolderView();
     }
   } catch(e) {
-    const msg = e.name === 'NotAllowedError'
-      ? 'Zugriff verweigert – bitte Ordner neu verbinden'
-      : 'Unerwarteter Fehler: ' + e.message;
-    toast(msg, 'err');
-    info.textContent = msg;
     console.error('runProcess Fehler:', e);
+    if (!await workspaceErreichbar()) {
+      verbindungVerloren('Ordner-Verbindung verloren – Dateien im _Eingang sind unverändert.');
+      info.textContent = 'Abgebrochen: Ordner-Verbindung verloren.';
+    } else {
+      const msg = 'Unerwarteter Fehler: ' + e.message;
+      toast(msg, 'err');
+      info.textContent = msg;
+    }
   }
 
   saveState();
