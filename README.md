@@ -35,6 +35,13 @@
 4. Unsichere Dokumente erscheinen unter „TODO – Unklar" zur manuellen Zuordnung; sie bleiben bis dahin im `_Eingang` und werden nicht erneut analysiert
 5. Jedes abgelegte Original wird unverändert und unter seinem ursprünglichen Namen in `_Archiv` gesichert. Den alten und neuen Namen zeigt das Protokoll.
 
+### Eigene Regeln und Lernen aus Korrekturen
+
+- **Eigene Regeln** (Einstellungen): „Wenn das Dokument mit X zu tun hat → Kategorie Y, Person Z“. Regeln haben Vorrang; die KI prüft sinngemäß, ähnliche Begriffe zählen mit. Voreingestellt: *Studium, Architektur → Steuer, Person Laura*.
+- **Korrekturen**: Jede manuelle Zuordnung aus der Warteschlange und jede Korrektur im Protokoll (✏️) wird gespeichert. Die letzten 30 bekommt die KI als Beispiele mit.
+- **Regel-Vorschläge**: Wird dreimal gleich korrigiert, schlägt die App vor, daraus eine feste Regel zu machen.
+- **Korrigieren im Protokoll** verschiebt und benennt die Datei sicher um; inhaltsgleiche alte Steuer-Kopien werden entfernt, das Original in `_Archiv` bleibt.
+
 ### Datensicherheit beim Ablegen
 
 - Zieldatei und Archivkopie werden geschrieben und per Größe und SHA-256-Prüfsumme gegen das Original geprüft

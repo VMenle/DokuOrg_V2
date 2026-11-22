@@ -386,11 +386,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
   <!-- MODAL -->
   <div class="overlay" id="queueOverlay">
     <div class="modal">
-      <div class="modal-badge">Entscheidung erforderlich</div>
-      <h2>Manuell zuordnen</h2>
+      <div class="modal-badge" id="m-badge">Entscheidung erforderlich</div>
+      <h2 id="m-title">Manuell zuordnen</h2>
       <p class="msub" id="m-filename">—</p>
       <div class="gemini-hint">
-        <div class="gh-title">🤖 Gemini-Vorschlag</div>
+        <div class="gh-title" id="gv-title">🤖 Gemini-Vorschlag</div>
         <div class="gh-grid">
           <div class="gh-field"><span class="gh-label">Kategorie</span><span class="gh-value" id="gv-kat">—</span></div>
           <div class="gh-field"><span class="gh-label">Art</span><span class="gh-value" id="gv-art">—</span></div>
@@ -539,8 +539,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
         <div class="page-hd"><h1>Protokoll</h1><p>Letzte 200 verarbeiteten Dokumente</p></div>
         <div class="card" style="padding:0;overflow:hidden;">
           <table class="log-table">
-            <thead><tr><th>Datum</th><th>Originalname</th><th>Neuer Name</th><th>Kategorie</th><th>Konfidenz</th><th>Typ</th></tr></thead>
-            <tbody id="logBody"><tr><td colspan="6"><div class="empty">Noch keine Einträge</div></td></tr></tbody>
+            <thead><tr><th>Datum</th><th>Originalname</th><th>Neuer Name</th><th>Kategorie</th><th>Konfidenz</th><th>Typ</th><th></th></tr></thead>
+            <tbody id="logBody"><tr><td colspan="7"><div class="empty">Noch keine Einträge</div></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -587,6 +587,36 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
               <div class="card-title" style="margin-bottom:10px;">Protokoll</div>
               <p style="font-size:13px;color:#8ba4b8;margin-bottom:12px;">Aktuell <span id="logCount" style="color:#f0ebe5;font-weight:700;">0</span> Einträge gespeichert (max. 200).</p>
               <button class="btn btn-danger btn-sm" id="clearLogBtn">🗑 Protokoll leeren</button>
+            </div>
+          </div>
+
+          <!-- Volle Breite: Eigene Regeln -->
+          <div class="settings-full">
+            <div class="card">
+              <div class="card-title" style="margin-bottom:6px;">Eigene Regeln</div>
+              <p style="font-size:13px;color:#8ba4b8;margin-bottom:12px;line-height:1.5;">Regeln haben Vorrang vor allem anderen. Die KI prüft den Inhalt sinngemäß – ähnliche Begriffe zählen mit.</p>
+              <div id="regelList"></div>
+              <div class="form-grid" style="margin-top:12px;">
+                <div class="fg form-full"><label>Wenn das Dokument zu tun hat mit (Stichwörter, kommagetrennt)</label><input type="text" id="regelStichwoerter" placeholder="z.B. Studium, Architektur"></div>
+                <div class="fg"><label>→ Kategorie</label><select id="regelKategorie"></select></div>
+                <div class="fg"><label>→ Person im Dateinamen</label><input type="text" id="regelPerson" placeholder="optional, z.B. Laura"></div>
+                <div class="fg form-full"><label>Hinweis für die KI (optional)</label><input type="text" id="regelHinweis" placeholder="z.B. auch Hochschule, Semesterbeitrag"></div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-primary btn-sm" id="saveRegelBtn">+ Regel speichern</button>
+                <button class="btn btn-ghost btn-sm" id="cancelRegelBtn" style="display:none;">Abbrechen</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Volle Breite: Gelernte Korrekturen -->
+          <div class="settings-full">
+            <div class="card">
+              <div class="card-title" style="margin-bottom:6px;">Gelernte Korrekturen</div>
+              <p style="font-size:13px;color:#8ba4b8;margin-bottom:12px;line-height:1.5;">Jede manuelle Zuordnung und jede Korrektur im Protokoll wird gespeichert. Die letzten 30 bekommt die KI als Beispiele mit. Wiederholt sich eine Korrektur, erscheint hier ein Regel-Vorschlag.</p>
+              <div id="regelVorschlaege"></div>
+              <div id="korrekturList"></div>
+              <button class="btn btn-danger btn-sm" id="clearKorrekturenBtn" style="margin-top:10px;">Alle Korrekturen löschen</button>
             </div>
           </div>
 
@@ -926,6 +956,22 @@ if (!categories || categories.length === 0) {
   }
 }
 
+// Eigene Regeln (Vorrang im Prompt) und gelernte Korrekturen (Beispiele im Prompt)
+const STANDARD_REGELN = [{
+  id: 'r_laura_studium', aktiv: true,
+  stichwoerter: 'Studium, Architektur',
+  kategorie: 'Steuer', person: 'Laura',
+  hinweis: 'Auch sinnverwandt: Hochschule, Universität, Semesterbeitrag, Studiengebühren, Architekturstudium, Fachliteratur, Software oder Material fürs Studium.'
+}];
+let regeln = _loadSafe('ds_regeln', null);
+if (!Array.isArray(regeln)) {
+  regeln = STANDARD_REGELN.map(r => ({...r}));
+  try { localStorage.setItem('ds_regeln', JSON.stringify(regeln)); } catch(e) {}
+}
+let korrekturen = _loadSafe('ds_korrekturen', []);
+const MAX_KORREKTUREN_IM_PROMPT = 30;
+const MAX_KORREKTUREN_GESPEICHERT = 200;
+
 let currentQueueIndex = 0;
 let currentFileExt = '';
 
@@ -933,7 +979,9 @@ function saveState() {
   const saves = [
     ['ds_queue',      queue],
     ['ds_log',        log],
-    ['ds_categories', categories]
+    ['ds_categories', categories],
+    ['ds_regeln',     regeln],
+    ['ds_korrekturen', korrekturen]
   ];
   for (const [key, val] of saves) {
     try {
@@ -1439,7 +1487,7 @@ function showPage(id, btn) {
   if (page) page.classList.add('active');
   if (btn) btn.classList.add('active');
   if (id === 'dashboard') { renderDashboard(); renderFolderView(); }
-  if (id === 'einstellungen') initKonfidenzSlider();
+  if (id === 'einstellungen') { initKonfidenzSlider(); renderRegeln(); }
 }
 
 // ══════════════════════════════════════════════
@@ -1693,12 +1741,26 @@ async function processFile(item, apiKey) {
     parsed = {konfidenz:0, unklar_grund:'KI-Antwort nicht lesbar: ' + rawText.substring(0,100)};
   }
 
-  const kategorie = (parsed.kategorie || '').trim();
+  let kategorie = (parsed.kategorie || '').trim();
   const art = cleanPart(parsed.art || '');
   const typ = cleanPart(parsed.dokumenttyp || '');
-  const person = cleanPart(parsed.person || '');
+  let person = cleanPart(parsed.person || '');
   const konfidenz = parseInt(parsed.konfidenz) || 0;
   const steuer = !!parsed.steuer_relevant;
+
+  // Eigene Regel: Kategorie/Person verbindlich von der Regel übernehmen
+  const regelId = String(parsed.regel_id || '').trim();
+  const regel = regelId ? regeln.find(r => r.aktiv && r.id === regelId) : null;
+  if (regel && categories.some(k => k.name === regel.kategorie)) {
+    kategorie = regel.kategorie;
+    if (regel.person) person = cleanPart(regel.person);
+  }
+  const details = {
+    art, doktyp: typ, person,
+    absender: String(parsed.absender || '').substring(0, 60),
+    beschreibung: String(parsed.beschreibung || '').substring(0, 120),
+    regel: regel ? regel.id : ''
+  };
 
   const heute = datumHeute();
   const datum = parsed.datum && /^\d{8}$/.test(String(parsed.datum)) ? String(parsed.datum) : heute;
@@ -1728,12 +1790,12 @@ async function processFile(item, apiKey) {
       }
     }
 
-    addToLog(name, tatsaecklicherName, katMatch.name, konfidenz, steuer, 'Automatisch');
+    addToLog(name, tatsaecklicherName, katMatch.name, konfidenz, steuer, 'Automatisch', {...details, belegdatum: datum});
     if (tatsaecklicherName !== newName) toast('✓ ' + tatsaecklicherName + ' (umbenannt – Name existierte bereits)', 'warn');
     else toast('✓ ' + tatsaecklicherName, 'ok');
     return 'abgelegt';
   }
-  addToQueue(name, kategorie, art, typ, person, datum, steuer, unklarGrund, konfidenz, file);
+  addToQueue(name, kategorie, art, typ, person, datum, steuer, unklarGrund, konfidenz, file, details);
   return 'queue';
 }
 
@@ -1927,12 +1989,14 @@ async function moveFromQueueToCategory(item, destFolderName, newName) {
 // ══════════════════════════════════════════════
 // QUEUE
 // ══════════════════════════════════════════════
-function addToQueue(name, kat, art, typ, person, datum, steuer, reason, konfidenz, file) {
+function addToQueue(name, kat, art, typ, person, datum, steuer, reason, konfidenz, file, details) {
   _queueIdCounter++;
   queue.push({
     id: parseInt(_queueIdCounter), // Always integer - prevents XSS via onclick
     name, kat, art, typ, person, datum, steuer,
     reason, konfidenz: konfidenz||0, status:'offen',
+    absender: details ? details.absender : '',
+    beschreibung: details ? details.beschreibung : '',
     groesse: file ? file.size : undefined,
     geaendert: file ? file.lastModified : undefined,
     added: new Date().toISOString().split('T')[0]
@@ -1963,23 +2027,24 @@ function renderQueue() {
   ).join('');
 }
 
-function openModal(id) {
-  const item = queue.find(q => q.id === id);
-  if (!item) return;
-  currentQueueIndex = id;
-  document.getElementById('m-filename').textContent = item.name;
-  setGV('gv-kat', item.kat);
-  setGV('gv-art', item.art);
-  setGV('gv-typ', item.typ);
-  setGV('gv-person', item.person);
-  document.getElementById('m-reason').textContent = item.reason || '–';
-  document.getElementById('m-art').value = item.art || '';
-  document.getElementById('m-typ').value = item.typ || '';
-  document.getElementById('m-person').value = item.person || '';
-  document.getElementById('m-datum').value = item.datum || '';
-  document.getElementById('m-steuer').checked = !!item.steuer;
-  currentFileExt = item.name.match(/\.([^.]+)$/)?.[1]?.toLowerCase() || '';
-  // Dropdown
+let _modalModus = 'queue'; // 'queue' = Warteschlange, 'log' = Korrektur im Protokoll
+let _korrLogIdx = -1;
+
+function setModalTexte(badge, titel, hinweisTitel, okText, abbrechenText) {
+  document.getElementById('m-badge').textContent = badge;
+  document.getElementById('m-title').textContent = titel;
+  document.getElementById('gv-title').textContent = hinweisTitel;
+  document.getElementById('resolveBtn').textContent = okText;
+  document.getElementById('skipModalBtn').textContent = abbrechenText;
+}
+
+function fuelleModal(werte, dateiname, katName) {
+  document.getElementById('m-art').value = werte.art || '';
+  document.getElementById('m-typ').value = werte.typ || '';
+  document.getElementById('m-person').value = werte.person || '';
+  document.getElementById('m-datum').value = werte.datum || '';
+  document.getElementById('m-steuer').checked = !!werte.steuer;
+  currentFileExt = dateiname.match(/\.([^.]+)$/)?.[1]?.toLowerCase() || '';
   const sel = document.getElementById('m-kat');
   sel.innerHTML = '<option value="">– wählen –</option>';
   categories.forEach(k => {
@@ -1987,11 +2052,43 @@ function openModal(id) {
     opt.value = k.folderName;
     opt.dataset.name = k.name;
     opt.textContent = k.name;
-    if (k.name.toLowerCase() === (item.kat||'').toLowerCase()) opt.selected = true;
+    if (k.name.toLowerCase() === (katName||'').toLowerCase()) opt.selected = true;
     sel.appendChild(opt);
   });
   updatePreview();
   document.getElementById('queueOverlay').classList.add('active');
+}
+
+function openModal(id) {
+  const item = queue.find(q => q.id === id);
+  if (!item) return;
+  _modalModus = 'queue';
+  currentQueueIndex = id;
+  setModalTexte('Entscheidung erforderlich', 'Manuell zuordnen', '🤖 Gemini-Vorschlag', '✓ Ablegen', 'Überspringen');
+  document.getElementById('m-filename').textContent = item.name;
+  setGV('gv-kat', item.kat);
+  setGV('gv-art', item.art);
+  setGV('gv-typ', item.typ);
+  setGV('gv-person', item.person);
+  document.getElementById('m-reason').textContent = item.reason || '–';
+  fuelleModal({art:item.art, typ:item.typ, person:item.person, datum:item.datum, steuer:item.steuer}, item.name, item.kat);
+}
+
+function openKorrektur(idx) {
+  const l = log[idx];
+  if (!l || !l.newName || !l.kategorie) return;
+  _modalModus = 'log';
+  _korrLogIdx = idx;
+  setModalTexte('Korrektur', 'Ablage korrigieren', '📄 Aktuelle Ablage', '✓ Korrigieren', 'Abbrechen');
+  document.getElementById('m-filename').textContent = l.newName + (l.origName ? '  (Original: ' + l.origName + ')' : '');
+  setGV('gv-kat', l.kategorie);
+  setGV('gv-art', l.art);
+  setGV('gv-typ', l.doktyp);
+  setGV('gv-person', l.person);
+  document.getElementById('m-reason').textContent =
+    'Abgelegt am ' + (l.datum || '–') + ' in „' + l.kategorie + '“. Die Datei wird sicher verschoben und umbenannt – deine Korrektur fließt ins Lernen ein.';
+  const datum = l.belegdatum || (l.newName.match(/^(\d{8})_/) || [])[1] || '';
+  fuelleModal({art:l.art, typ:l.doktyp, person:l.person, datum, steuer:l.steuer}, l.newName, l.kategorie);
 }
 
 function skipModal() {
@@ -2067,7 +2164,14 @@ async function resolveItem() {
     }
 
     item.status = 'erledigt';
-    addToLog(item.name, finalName, katName, item.konfidenz, steuer, 'Manuell');
+    addToLog(item.name, finalName, katName, item.konfidenz, steuer, 'Manuell', {
+      art, doktyp: typ, person, belegdatum: datum,
+      absender: item.absender || '', beschreibung: item.beschreibung || ''
+    });
+    merkeKorrektur(item.name,
+      {kategorie: item.kat, art: item.art, typ: item.typ, person: item.person},
+      {kategorie: katName, art, typ, person},
+      item);
     saveState();
     renderAll();
     document.getElementById('queueOverlay').classList.remove('active');
@@ -2087,6 +2191,222 @@ async function resolveItem() {
     }
     btn.textContent = '✓ Ablegen'; btn.disabled = false;
   }
+}
+
+/** Automatisch (oder früher) abgelegte Datei nachträglich korrigieren. */
+async function korrigiereLogEintrag() {
+  const l = log[_korrLogIdx];
+  if (!l) { toast('Protokolleintrag nicht mehr vorhanden', 'err'); skipModal(); return; }
+  const sel = document.getElementById('m-kat');
+  const folderName = sel.value;
+  const katName = sel.selectedIndex > 0 ? (sel.options[sel.selectedIndex].dataset.name || '') : '';
+  if (!folderName || !katName) { toast('Bitte Kategorie wählen', 'warn'); return; }
+  if (_prozessLaeuft) { toast('Bitte warten, bis die laufende Verarbeitung fertig ist', 'warn'); return; }
+  if (!await ensureWorkspace()) return;
+
+  let datumRaw = document.getElementById('m-datum').value.trim().replace(/-/g, '');
+  const datum = /^\d{8}$/.test(datumRaw) ? datumRaw : datumHeute();
+  const art = document.getElementById('m-art').value.trim();
+  const typ = document.getElementById('m-typ').value.trim();
+  const person = document.getElementById('m-person').value.trim();
+  const steuer = document.getElementById('m-steuer').checked;
+  const newName = buildName(datum, katName, art, typ, person, currentFileExt);
+
+  const alteKat = categories.find(k => k.name === l.kategorie);
+  const alterOrdnerName = alteKat ? alteKat.folderName : l.kategorie;
+  const gleicherOrt = alterOrdnerName === folderName && newName === l.newName;
+  const sekundaer = categories.filter(k => k.isSecondary);
+
+  const btn = document.getElementById('resolveBtn');
+  btn.textContent = '⏳...'; btn.disabled = true;
+  try {
+    const alterOrdner = await workspaceHandle.getDirectoryHandle(alterOrdnerName, {create:false});
+    let srcHandle;
+    try { srcHandle = await alterOrdner.getFileHandle(l.newName); }
+    catch(e) { throw new Error('„' + l.newName + '“ liegt nicht mehr in „' + alterOrdnerName + '“ – wurde sie verschoben oder umbenannt?'); }
+    const srcHash = await sha256Hex(await (await srcHandle.getFile()).arrayBuffer());
+
+    // Alte Sekundärkopien nur entfernen, wenn sie inhaltsgleich sind (echte Duplikate)
+    if (l.steuer && (!steuer || !gleicherOrt)) {
+      for (const sKat of sekundaer) {
+        if (sKat.folderName === alterOrdnerName) continue;
+        try {
+          const sf = await workspaceHandle.getDirectoryHandle(sKat.folderName, {create:false});
+          const kopie = await sf.getFileHandle(l.newName);
+          if (await sha256Hex(await (await kopie.getFile()).arrayBuffer()) === srcHash) await sf.removeEntry(l.newName);
+        } catch(e) {}
+      }
+    }
+
+    let finalName = l.newName;
+    if (!gleicherOrt) {
+      const ziel = await workspaceHandle.getDirectoryHandle(folderName, {create:true});
+      finalName = await sicherVerschieben(srcHandle, alterOrdner, ziel, newName);
+    }
+
+    if (steuer && (!l.steuer || !gleicherOrt)) {
+      for (const sKat of sekundaer.filter(k => k.folderName !== folderName)) {
+        try { await sicherKopieren(folderName, sKat.folderName, finalName); }
+        catch(e) { toast('Kopie in "' + sKat.name + '" fehlgeschlagen: ' + e.message, 'warn'); }
+      }
+    }
+
+    merkeKorrektur(l.origName || l.newName,
+      {kategorie: l.kategorie, art: l.art, typ: l.doktyp, person: l.person},
+      {kategorie: katName, art, typ, person},
+      l);
+    Object.assign(l, {newName: finalName, kategorie: katName, steuer, art, doktyp: typ, person, belegdatum: datum, typ: 'Korrigiert'});
+    saveState();
+    renderAll();
+    document.getElementById('queueOverlay').classList.remove('active');
+    toast('✓ Korrigiert: ' + finalName, 'ok');
+  } catch(e) {
+    toast('Korrektur fehlgeschlagen: ' + e.message + ' – an der Ablage wurde nichts verloren.', 'err');
+  }
+  btn.textContent = '✓ Korrigieren'; btn.disabled = false;
+}
+
+// ══════════════════════════════════════════════
+// EIGENE REGELN & GELERNTE KORREKTUREN
+// ══════════════════════════════════════════════
+let _regelEditId = null;
+
+function merkeKorrektur(origName, vorschlag, gewaehlt, info) {
+  const norm = v => String(v || '').trim().toLowerCase();
+  const gleich = ['kategorie', 'art', 'typ', 'person'].every(f => norm(vorschlag[f]) === norm(gewaehlt[f]));
+  if (gleich) return;
+  korrekturen.push({
+    datum: new Date().toISOString().split('T')[0],
+    origName,
+    vorschlag: {kategorie: vorschlag.kategorie || '', art: vorschlag.art || '', typ: vorschlag.typ || '', person: vorschlag.person || ''},
+    gewaehlt: {kategorie: gewaehlt.kategorie || '', art: gewaehlt.art || '', typ: gewaehlt.typ || '', person: gewaehlt.person || ''},
+    absender: (info && info.absender) || '',
+    beschreibung: (info && info.beschreibung) || ''
+  });
+  if (korrekturen.length > MAX_KORREKTUREN_GESPEICHERT) korrekturen = korrekturen.slice(-MAX_KORREKTUREN_GESPEICHERT);
+  const v = regelVorschlaege().find(x => x.kategorie === gewaehlt.kategorie && norm(x.person) === norm(gewaehlt.person));
+  if (v && v.anzahl === 3) toast('Tipp: Du hast ' + v.anzahl + '× nach „' + v.kategorie + '“ korrigiert. Unter Einstellungen → Gelernte Korrekturen kannst du daraus eine feste Regel machen.', 'info');
+}
+
+// Wiederholte Kategorie-Korrekturen (≥3) ohne passende Regel
+function regelVorschlaege() {
+  const norm = v => String(v || '').trim().toLowerCase();
+  const gruppen = {};
+  for (const k of korrekturen) {
+    if (norm(k.vorschlag.kategorie) === norm(k.gewaehlt.kategorie)) continue;
+    const key = k.gewaehlt.kategorie + '|' + norm(k.gewaehlt.person);
+    (gruppen[key] = gruppen[key] || {kategorie: k.gewaehlt.kategorie, person: k.gewaehlt.person, liste: []}).liste.push(k);
+  }
+  return Object.values(gruppen)
+    .filter(g => g.liste.length >= 3 && !regeln.some(r => r.aktiv && r.kategorie === g.kategorie && norm(r.person) === norm(g.person)))
+    .map(g => ({kategorie: g.kategorie, person: g.person, anzahl: g.liste.length, liste: g.liste}));
+}
+
+function renderRegeln() {
+  const listEl = document.getElementById('regelList');
+  if (!listEl) return;
+  listEl.innerHTML = regeln.length === 0
+    ? '<div class="empty" style="padding:8px 0;">Noch keine Regeln.</div>'
+    : regeln.map(r => {
+        const katFehlt = !categories.some(k => k.name === r.kategorie);
+        return '<div class="q-card" style="margin-bottom:8px;' + (r.aktiv ? '' : 'opacity:.5;') + '">' +
+          '<div class="q-card-name">' + esc(r.stichwoerter) + ' → ' + esc(r.kategorie) + (r.person ? ' · Person: ' + esc(r.person) : '') + '</div>' +
+          (r.hinweis ? '<div class="q-card-meta">' + esc(r.hinweis) + '</div>' : '') +
+          (katFehlt ? '<div class="q-card-reason">⚠ Kategorie „' + esc(r.kategorie) + '“ existiert nicht – Regel wird ignoriert.</div>' : '') +
+          '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">' +
+            '<button class="btn btn-ghost btn-sm" data-regel-id="' + esc(r.id) + '" data-action="toggle">' + (r.aktiv ? '⏸ Deaktivieren' : '▶ Aktivieren') + '</button>' +
+            '<button class="btn btn-ghost btn-sm" data-regel-id="' + esc(r.id) + '" data-action="edit">✏️ Bearbeiten</button>' +
+            '<button class="btn btn-danger btn-sm" data-regel-id="' + esc(r.id) + '" data-action="delete">Löschen</button>' +
+          '</div></div>';
+      }).join('');
+
+  const sel = document.getElementById('regelKategorie');
+  const gewaehlt = sel.value;
+  sel.innerHTML = categories.map(k => '<option value="' + esc(k.name) + '">' + esc(k.name) + '</option>').join('');
+  if (gewaehlt) sel.value = gewaehlt;
+
+  const vorschlaege = regelVorschlaege();
+  document.getElementById('regelVorschlaege').innerHTML = vorschlaege.map((v, i) =>
+    '<div class="q-card" style="margin-bottom:8px;border-color:var(--accent);">' +
+      '<div class="q-card-name">💡 ' + v.anzahl + '× korrigiert nach „' + esc(v.kategorie) + '“' + (v.person ? ' (Person ' + esc(v.person) + ')' : '') + '</div>' +
+      '<button class="btn btn-primary btn-sm" style="margin-top:8px;" data-vorschlag-idx="' + i + '">Als Regel übernehmen…</button>' +
+    '</div>').join('');
+
+  const letzte = korrekturen.slice(-10).reverse();
+  const fmt = o => [o.kategorie || 'keine', o.art, o.typ, o.person].filter(Boolean).join(' / ');
+  document.getElementById('korrekturList').innerHTML = korrekturen.length === 0
+    ? '<div class="empty" style="padding:8px 0;">Noch keine Korrekturen gespeichert.</div>'
+    : '<div style="font-size:12px;color:var(--text3);margin-bottom:6px;">' + korrekturen.length + ' gespeichert, die letzten 10:</div>' +
+      letzte.map((k, i) =>
+        '<div class="dash-log-row" style="gap:8px;">' +
+          '<span class="dash-log-name" style="white-space:normal;overflow:visible;" title="' + esc(k.beschreibung || k.origName) + '">' + esc(k.beschreibung || k.origName) + ': ' +
+            '<span style="color:var(--text3);">' + esc(fmt(k.vorschlag)) + '</span> → ' + esc(fmt(k.gewaehlt)) + '</span>' +
+          '<button class="btn btn-ghost btn-sm" data-korr-del="' + (korrekturen.length - 1 - i) + '" title="Korrektur vergessen">✕</button>' +
+        '</div>').join('');
+}
+
+function speichereRegel() {
+  const stichwoerter = document.getElementById('regelStichwoerter').value.trim();
+  const kategorie = document.getElementById('regelKategorie').value;
+  const person = document.getElementById('regelPerson').value.trim();
+  const hinweis = document.getElementById('regelHinweis').value.trim();
+  if (!stichwoerter) { toast('Bitte Stichwörter eingeben', 'warn'); return; }
+  if (!kategorie) { toast('Bitte Kategorie wählen', 'warn'); return; }
+  if (_regelEditId) {
+    const r = regeln.find(x => x.id === _regelEditId);
+    if (r) Object.assign(r, {stichwoerter, kategorie, person, hinweis});
+  } else {
+    regeln.push({id: 'r_' + Date.now().toString(36), aktiv: true, stichwoerter, kategorie, person, hinweis});
+  }
+  regelFormularLeeren();
+  saveState();
+  renderRegeln();
+  toast('✓ Regel gespeichert – gilt ab dem nächsten Lauf', 'ok');
+}
+
+function regelFormularLeeren() {
+  _regelEditId = null;
+  ['regelStichwoerter', 'regelPerson', 'regelHinweis'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('saveRegelBtn').textContent = '+ Regel speichern';
+  document.getElementById('cancelRegelBtn').style.display = 'none';
+}
+
+function regelInsFormular(werte, editId) {
+  _regelEditId = editId || null;
+  document.getElementById('regelStichwoerter').value = werte.stichwoerter || '';
+  document.getElementById('regelKategorie').value = werte.kategorie || '';
+  document.getElementById('regelPerson').value = werte.person || '';
+  document.getElementById('regelHinweis').value = werte.hinweis || '';
+  document.getElementById('saveRegelBtn').textContent = editId ? '✓ Änderung speichern' : '+ Regel speichern';
+  document.getElementById('cancelRegelBtn').style.display = '';
+  document.getElementById('regelStichwoerter').focus();
+}
+
+function regelAktion(id, action) {
+  const r = regeln.find(x => x.id === id);
+  if (!r) return;
+  if (action === 'toggle') r.aktiv = !r.aktiv;
+  else if (action === 'edit') { regelInsFormular(r, r.id); return; }
+  else if (action === 'delete') {
+    if (!confirm('Regel „' + r.stichwoerter + ' → ' + r.kategorie + '“ löschen?')) return;
+    regeln = regeln.filter(x => x.id !== id);
+  }
+  saveState();
+  renderRegeln();
+}
+
+function vorschlagAlsRegel(idx) {
+  const v = regelVorschlaege()[idx];
+  if (!v) return;
+  const arten = [...new Set(v.liste.map(k => k.gewaehlt.art).filter(Boolean))].slice(0, 5);
+  const beispiele = v.liste.map(k => k.beschreibung).filter(Boolean).slice(0, 3);
+  regelInsFormular({
+    stichwoerter: arten.join(', '),
+    kategorie: v.kategorie,
+    person: v.person,
+    hinweis: beispiele.length ? 'Beispiele: ' + beispiele.join('; ') : ''
+  });
+  toast('Bitte Stichwörter prüfen/ergänzen und dann speichern', 'info');
 }
 
 // ══════════════════════════════════════════════
@@ -2269,18 +2589,19 @@ async function deleteKategorie(i) {
 // ══════════════════════════════════════════════
 // LOG
 // ══════════════════════════════════════════════
-function addToLog(origName, newName, kategorie, konfidenz, steuer, typ) {
+function addToLog(origName, newName, kategorie, konfidenz, steuer, typ, details) {
   log.unshift({
     datum: new Date().toISOString().split('T')[0],
-    origName, newName, kategorie, konfidenz, steuer, typ
+    origName, newName, kategorie, konfidenz, steuer, typ,
+    ...(details || {})
   });
   if (log.length > 200) log = log.slice(0,200);
 }
 
 function renderLog() {
   const tbody = document.getElementById('logBody');
-  if (log.length === 0) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty">Noch keine Einträge</div></td></tr>'; return; }
-  tbody.innerHTML = log.map(l => {
+  if (log.length === 0) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty">Noch keine Einträge</div></td></tr>'; return; }
+  tbody.innerHTML = log.map((l, idx) => {
     // Alle Kategorien anzeigen: Primär + Sekundärkategorien wenn steuerrelevant
     let katAnzeige = esc(l.kategorie||'–');
     if (l.steuer) {
@@ -2295,7 +2616,8 @@ function renderLog() {
     '<td style="max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+esc(l.newName||'')+'">'+esc(l.newName||'–')+'</td>' +
     '<td>' + katAnzeige + '</td>' +
     '<td>'+(l.konfidenz ? l.konfidenz+'%' : '–')+'</td>' +
-    '<td><span class="tag '+(l.typ==='Manuell'?'tag-manual':'tag-auto')+'">'+esc(l.typ||'–')+'</span></td>' +
+    '<td><span class="tag '+(l.typ==='Automatisch'?'tag-auto':'tag-manual')+'">'+esc(l.typ||'–')+'</span></td>' +
+    '<td>' + (l.newName && l.kategorie ? '<button class="btn btn-ghost btn-sm" data-korr-idx="' + idx + '" title="Kategorie/Namen korrigieren">✏️</button>' : '') + '</td>' +
     '</tr>';
   }).join('');
 }
@@ -2347,8 +2669,9 @@ function deactivateLicense() {
   localStorage.removeItem('ds_lic_data');
   if (allesLoeschen) {
     ['ds_queue','ds_log','ds_categories','ds_api_key','ds_workspace_name',
-     'ds_categories_version','ds_konfidenz','ds_folder_consent'].forEach(k => localStorage.removeItem(k));
-    queue = []; log = []; categories = [];
+     'ds_categories_version','ds_konfidenz','ds_folder_consent',
+     'ds_regeln','ds_korrekturen','ds_verarbeitet'].forEach(k => localStorage.removeItem(k));
+    queue = []; log = []; categories = []; regeln = []; korrekturen = [];
     toast('Alle Daten gelöscht', 'ok');
   } else {
     toast('Lizenz entfernt – Daten bleiben erhalten', 'ok');
@@ -2363,6 +2686,7 @@ function renderAll() {
   renderQueue();
   renderKategorien();
   renderLog();
+  renderRegeln();
   updateLicInfo();
   renderDashboard();
 }
@@ -2403,7 +2727,7 @@ function renderDashboard() {
         '<span class="dash-log-name" title="' + esc(l.newName||'') + '">' + esc(l.newName||'–') + '</span>' +
         '<span style="display:flex;gap:8px;align-items:center;flex-shrink:0;">' +
           '<span style="font-size:11px;color:var(--text3);font-family:var(--mono);">' + esc(l.kategorie||'–') + '</span>' +
-          '<span class="tag ' + (l.typ==='Manuell'?'tag-manual':'tag-auto') + '">' + esc(l.typ||'–') + '</span>' +
+          '<span class="tag ' + (l.typ==='Automatisch'?'tag-auto':'tag-manual') + '">' + esc(l.typ||'–') + '</span>' +
         '</span>' +
         '</div>'
       ).join('');
@@ -2522,6 +2846,7 @@ function buildPrompt(cats) {
   return 'Du bist ein Dokumenten-Kategorisierungsassistent für deutsche Privatunterlagen.\n\n' +
     '## VERFÜGBARE KATEGORIEN (NUR diese verwenden):\n' +
     (katDetails || 'keine – kategorie leer lassen') + '\n\n' +
+    regelnPromptTeil() +
     '## PRIORITÄTSREIHENFOLGE bei Unklarheit:\n' +
     '1. Versicherungen (alle Policen, Beiträge, Versicherungsschreiben)\n' +
     '2. Bank & Finanzen (Kontoauszüge, Depot, Kapitalerträge)\n' +
@@ -2533,6 +2858,7 @@ function buildPrompt(cats) {
     '- Schutzkleidung, Arbeitsmittel, Werkzeug → Kategorie: Belege, steuer_relevant: true\n' +
     '- Bedienungsanleitung, Handbuch, Manual → immer Kategorie: Anleitungen\n' +
     '- Riester, Rürup → Kategorie: Versicherungen\n\n' +
+    korrekturenPromptTeil() +
     '## NAMENSKONVENTION:\n' +
     'YYYYMMDD_Kategorie_Art_Dokumenttyp_Person\n\n' +
     '## FELDER:\n' +
@@ -2548,11 +2874,35 @@ function buildPrompt(cats) {
     '  Belege/Arbeit: true bei Schutzkleidung, Arbeitsmittel, Fortbildung, Fahrtkosten, anteiliges Telefon/Internet\n' +
     '  GRUNDSATZ: Im Zweifel steuer_relevant=true – lieber einmal zu viel als zu wenig\n' +
     '- konfidenz: 0–100 (wie sicher bist du mit der Kategorisierung)\n' +
-    '- unklar_grund: Begründung wenn konfidenz < 70 oder keine Kategorie passt\n\n' +
+    '- unklar_grund: Begründung wenn konfidenz < 70 oder keine Kategorie passt\n' +
+    '- absender: wer das Dokument ausgestellt hat (Firma, Behörde, Hochschule), kurz\n' +
+    '- beschreibung: worum es im Dokument geht, max. 12 Wörter\n' +
+    '- regel_id: ID der zutreffenden eigenen Regel, sonst leer\n\n' +
     '## REGELN:\n' +
     'Nur ASCII + Bindestrich in Textfeldern. Keine neue Kategorie erfinden. Wenn keine Kategorie passt, kategorie leer lassen und konfidenz niedrig setzen.\n\n' +
     'Antworte NUR mit diesem JSON – kein Kommentar, kein Markdown:\n' +
-    '{"kategorie":"","art":"","dokumenttyp":"","person":"","datum":"","steuer_relevant":false,"konfidenz":0,"unklar_grund":""}';
+    '{"kategorie":"","art":"","dokumenttyp":"","person":"","datum":"","steuer_relevant":false,"konfidenz":0,"unklar_grund":"","absender":"","beschreibung":"","regel_id":""}';
+}
+
+function regelnPromptTeil() {
+  const aktiv = regeln.filter(r => r.aktiv && r.stichwoerter && categories.some(k => k.name === r.kategorie));
+  if (aktiv.length === 0) return '';
+  return '## EIGENE REGELN DES NUTZERS (VORRANG vor allen anderen Regeln und der Prioritätsreihenfolge):\n' +
+    aktiv.map(r => '- Regel ' + r.id + ': Wenn das Dokument inhaltlich mit ' + r.stichwoerter +
+      ' oder sinnverwandten Begriffen zu tun hat → kategorie: ' + r.kategorie +
+      (r.person ? ', person: ' + r.person : '') +
+      (r.hinweis ? '. Hinweis: ' + r.hinweis : '')).join('\n') +
+    '\nTrifft eine Regel zu: kategorie und person genau wie angegeben setzen und regel_id auf die ID der Regel setzen.\n\n';
+}
+
+function korrekturenPromptTeil() {
+  const liste = korrekturen.slice(-MAX_KORREKTUREN_IM_PROMPT);
+  if (liste.length === 0) return '';
+  const fmt = o => [o.kategorie || 'keine Kategorie', o.art, o.typ, o.person ? 'Person ' + o.person : ''].filter(Boolean).join(' / ');
+  return '## FRÜHERE KORREKTUREN DES NUTZERS (ähnliche Dokumente genauso einordnen):\n' +
+    liste.map(k => '- ' + (k.beschreibung ? '„' + k.beschreibung + '“' : k.origName) +
+      (k.absender ? ' (Absender: ' + k.absender + ')' : '') +
+      ': falsch ' + fmt(k.vorschlag) + ' → richtig ' + fmt(k.gewaehlt)).join('\n') + '\n\n';
 }
 
 function buildName(datum, katName, art, typ, person, ext) {
@@ -2735,7 +3085,37 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('m-person')?.addEventListener('input', updatePreview);
   document.getElementById('m-datum')?.addEventListener('input', updatePreview);
   document.getElementById('skipModalBtn')?.addEventListener('click', skipModal);
-  document.getElementById('resolveBtn')?.addEventListener('click', () => mitSperre(resolveItem));
+  document.getElementById('resolveBtn')?.addEventListener('click', () =>
+    mitSperre(_modalModus === 'log' ? korrigiereLogEintrag : resolveItem));
+
+  // Protokoll – Korrigieren
+  document.getElementById('logBody')?.addEventListener('click', e => {
+    const btn = e.target.closest('[data-korr-idx]');
+    if (btn) openKorrektur(parseInt(btn.dataset.korrIdx));
+  });
+
+  // Eigene Regeln & Korrekturen
+  document.getElementById('saveRegelBtn')?.addEventListener('click', speichereRegel);
+  document.getElementById('cancelRegelBtn')?.addEventListener('click', regelFormularLeeren);
+  document.getElementById('regelList')?.addEventListener('click', e => {
+    const btn = e.target.closest('[data-regel-id]');
+    if (btn) regelAktion(btn.dataset.regelId, btn.dataset.action);
+  });
+  document.getElementById('regelVorschlaege')?.addEventListener('click', e => {
+    const btn = e.target.closest('[data-vorschlag-idx]');
+    if (btn) vorschlagAlsRegel(parseInt(btn.dataset.vorschlagIdx));
+  });
+  document.getElementById('korrekturList')?.addEventListener('click', e => {
+    const btn = e.target.closest('[data-korr-del]');
+    if (!btn) return;
+    korrekturen.splice(parseInt(btn.dataset.korrDel), 1);
+    saveState(); renderRegeln();
+  });
+  document.getElementById('clearKorrekturenBtn')?.addEventListener('click', () => {
+    if (!confirm('Alle gelernten Korrekturen löschen? Die KI bekommt dann keine Beispiele mehr.')) return;
+    korrekturen = [];
+    saveState(); renderRegeln();
+  });
 
   // Kategorien – Event Delegation
   document.getElementById('katList')?.addEventListener('click', e => {
