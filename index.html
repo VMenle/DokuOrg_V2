@@ -5,7 +5,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://qvvsuksdribtjkplaynu.supabase.co https://generativelanguage.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' blob: data:; connect-src 'self' https://qvvsuksdribtjkplaynu.supabase.co https://generativelanguage.googleapis.com https://api.anthropic.com; font-src https://fonts.gstatic.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://qvvsuksdribtjkplaynu.supabase.co https://generativelanguage.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' blob: data:; frame-src 'self' blob:; connect-src 'self' https://qvvsuksdribtjkplaynu.supabase.co https://generativelanguage.googleapis.com https://api.anthropic.com; font-src https://fonts.gstatic.com;">
 <title>DokumentenOrganizer</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1f2d'/%3E%3Crect x='6' y='8' width='14' height='3' rx='1.5' fill='%23d4820a'/%3E%3Crect x='6' y='13' width='20' height='3' rx='1.5' fill='%23f0ebe5'/%3E%3Crect x='6' y='18' width='20' height='3' rx='1.5' fill='%23f0ebe5'/%3E%3Crect x='6' y='23' width='12' height='3' rx='1.5' fill='%232a9d8f'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -287,6 +287,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 .settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
 .settings-grid .card{margin-bottom:0;}
 .settings-full{grid-column:1/-1;}
+/* ── VORSCHAU IM ZUORDNEN-/KORREKTUR-FENSTER ── */
+.modal-mit-vorschau{width:1180px;display:grid;grid-template-columns:minmax(0,1fr) 520px;gap:24px;align-items:start;}
+.mv-vorschau{position:sticky;top:0;display:flex;flex-direction:column;gap:8px;min-height:200px;}
+.mv-vorschau iframe{width:100%;height:76vh;border:0;border-radius:8px;background:#fff;}
+.mv-vorschau img{max-width:100%;max-height:76vh;object-fit:contain;border-radius:8px;background:#fff;align-self:center;}
+.mv-vorschau .mv-leer{color:var(--text3);font-size:13px;padding:20px;border:1px dashed var(--border2);border-radius:8px;text-align:center;}
+@media (max-width:1000px){.modal-mit-vorschau{grid-template-columns:1fr;}.mv-vorschau{position:static;}.mv-vorschau iframe{height:50vh;}}
 /* ── VERSICHERUNGS-CHECK ── */
 .vs-table{width:100%;border-collapse:collapse;font-size:12.5px;}
 .vs-table th{text-align:left;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);}
@@ -409,7 +416,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 
   <!-- MODAL -->
   <div class="overlay" id="queueOverlay">
-    <div class="modal">
+    <div class="modal modal-mit-vorschau">
+      <div class="mv-vorschau" id="m-vorschau"></div>
+      <div class="mv-formular">
       <div class="modal-badge" id="m-badge">Entscheidung erforderlich</div>
       <h2 id="m-title">Manuell zuordnen</h2>
       <p class="msub" id="m-filename">—</p>
@@ -442,6 +451,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
       <div class="modal-actions">
         <button class="btn btn-ghost" id="skipModalBtn">Überspringen</button>
         <button class="btn btn-success" id="resolveBtn" disabled>✓ Ablegen</button>
+      </div>
       </div>
     </div>
   </div>
@@ -715,7 +725,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 // Kein SECRET im Frontend. Kein lokaler Algorithmus.
 // ══════════════════════════════════════════════
 const SUPABASE_VALIDATE_URL = 'https://qvvsuksdribtjkplaynu.supabase.co/functions/v1/validate-license';
-const APP_VERSION = '2026-11-22.12';
+const APP_VERSION = '2026-11-22.13';
 const GEMINI_REQUEST_DELAY_MS = 4200; // Gemini Free Tier: max 15 Req/Min → min. 4s Abstand
 
 // ── KI-Modell (in den Einstellungen wählbar) ──
@@ -2039,7 +2049,11 @@ async function processFile(item) {
   }
 
   let kategorie = (parsed.kategorie || '').trim();
-  const art = cleanPart(parsed.art || '');
+  // Versichertes Objekt (z. B. Kennzeichen VS1006) direkt hinter die Art: KFZ_VS1006
+  const objekt = String(parsed.objekt || '').replace(/[^A-Za-z0-9ÄÖÜäöü]/g, '').substring(0, 12);
+  const artRoh = String(parsed.art || '');
+  const schonDrin = objekt && artRoh.replace(/[^A-Za-z0-9ÄÖÜäöü]/g, '').toLowerCase().includes(objekt.toLowerCase());
+  const art = cleanPart([artRoh, schonDrin ? '' : objekt].filter(Boolean).join(' '), 30);
   const typ = cleanPart(parsed.dokumenttyp || '');
   let person = cleanPart(parsed.person || '');
   const konfidenz = parseInt(parsed.konfidenz) || 0;
@@ -2343,6 +2357,29 @@ function setModalTexte(badge, titel, hinweisTitel, okText, abbrechenText) {
   document.getElementById('skipModalBtn').textContent = abbrechenText;
 }
 
+let _vorschauUrl = null;
+
+// Datei aus dem Arbeitsordner als Vorschau zeigen (PDF im Browser-Viewer, Bilder direkt) + Link für neuen Tab
+async function zeigeVorschau(ordnerName, dateiName) {
+  const el = document.getElementById('m-vorschau');
+  if (_vorschauUrl) { URL.revokeObjectURL(_vorschauUrl); _vorschauUrl = null; }
+  el.innerHTML = '<div class="mv-leer">⏳ Lade Vorschau …</div>';
+  try {
+    const ordner = await workspaceHandle.getDirectoryHandle(ordnerName, {create:false});
+    const file = await (await ordner.getFileHandle(dateiName)).getFile();
+    const typ = file.type || guessMime(dateiName);
+    _vorschauUrl = URL.createObjectURL(new Blob([file], {type: typ}));
+    const link = '<a class="btn btn-ghost btn-sm" href="' + _vorschauUrl + '" target="_blank" rel="noopener">↗ In neuem Tab öffnen</a>';
+    let anzeige;
+    if (typ === 'application/pdf') anzeige = '<iframe src="' + _vorschauUrl + '" title="Vorschau"></iframe>';
+    else if (/^image\/(jpeg|png|gif|webp)$/.test(typ)) anzeige = '<img src="' + _vorschauUrl + '" alt="Vorschau">';
+    else anzeige = '<div class="mv-leer">Für dieses Format (' + esc(typ) + ') gibt es keine Vorschau im Browser – bitte über den Link öffnen.</div>';
+    el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span class="vs-klein">' + esc(ordnerName + ' / ' + dateiName) + '</span>' + link + '</div>' + anzeige;
+  } catch(e) {
+    el.innerHTML = '<div class="mv-leer">Datei „' + esc(dateiName) + '“ nicht gefunden in ' + esc(ordnerName) + ' – Ordner verbunden?</div>';
+  }
+}
+
 function fuelleModal(werte, dateiname, katName) {
   document.getElementById('m-art').value = werte.art || '';
   document.getElementById('m-typ').value = werte.typ || '';
@@ -2377,6 +2414,7 @@ function openModal(id) {
   setGV('gv-person', item.person);
   document.getElementById('m-reason').textContent = item.reason || '–';
   fuelleModal({art:item.art, typ:item.typ, person:item.person, datum:item.datum, steuer:item.steuer}, item.name, item.kat);
+  zeigeVorschau(item.ordner || '_Eingang', item.name);
 }
 
 function openKorrektur(idx) {
@@ -2394,6 +2432,8 @@ function openKorrektur(idx) {
     'Abgelegt am ' + (l.datum || '–') + ' in „' + l.kategorie + '“. Die Datei wird sicher verschoben und umbenannt – deine Korrektur fließt ins Lernen ein.';
   const datum = l.belegdatum || (l.newName.match(/^(\d{8})_/) || [])[1] || '';
   fuelleModal({art:l.art, typ:l.doktyp, person:l.person, datum, steuer:l.steuer}, l.newName, l.kategorie);
+  const kat = categories.find(k => k.name === l.kategorie);
+  zeigeVorschau(kat ? kat.folderName : l.kategorie, l.newName);
 }
 
 function skipModal() {
@@ -3181,6 +3221,7 @@ function buildPrompt(cats) {
     '## FELDER:\n' +
     '- kategorie: EXAKT ein Name aus der obigen Liste oder leer wenn keine passt\n' +
     '- art: Unterkategorie (KFZ, Leben, Haftpflicht, Strom, Wasser, Gehalt, Kranken usw.)\n' +
+    '- objekt: betroffenes Fahrzeug, kurz – Kfz-Kennzeichen OHNE Ortskennung und ohne Leer-/Trennzeichen (Kennzeichen „AA-VS 1006“ → „VS1006“, „AA-VM 720“ → „VM720“); gilt für alle Dokumente zu einem Fahrzeug (Versicherung, Steuer, Werkstatt); sonst leer\n' +
     '- dokumenttyp: Rechnung, Versicherungsschein, Mahnung, Vertrag, Bescheid, Kontoauszug, Quittung, Garantiebeleg, Anleitung, Gehaltsabrechnung\n' +
     '- person: Vorname + erster Buchstabe Nachname ohne Trenner (z.B. "Volker Moos" → "VolkerM"); sonst leer\n' +
     '- datum: Belegdatum (YYYYMMDD) – NICHT heute – aus dem Dokument lesen\n' +
@@ -3198,7 +3239,7 @@ function buildPrompt(cats) {
     '## REGELN:\n' +
     'Nur ASCII + Bindestrich in Textfeldern. Keine neue Kategorie erfinden. Wenn keine Kategorie passt, kategorie leer lassen und konfidenz niedrig setzen.\n\n' +
     'Antworte NUR mit diesem JSON – kein Kommentar, kein Markdown:\n' +
-    '{"kategorie":"","art":"","dokumenttyp":"","person":"","datum":"","steuer_relevant":false,"konfidenz":0,"unklar_grund":"","absender":"","beschreibung":"","regel_id":""}';
+    '{"kategorie":"","art":"","dokumenttyp":"","person":"","datum":"","steuer_relevant":false,"konfidenz":0,"unklar_grund":"","absender":"","beschreibung":"","regel_id":"","objekt":""}';
 }
 
 function regelnPromptTeil() {
