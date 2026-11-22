@@ -715,7 +715,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 // Kein SECRET im Frontend. Kein lokaler Algorithmus.
 // ══════════════════════════════════════════════
 const SUPABASE_VALIDATE_URL = 'https://qvvsuksdribtjkplaynu.supabase.co/functions/v1/validate-license';
-const APP_VERSION = '2026-11-22.11';
+const APP_VERSION = '2026-11-22.12';
 const GEMINI_REQUEST_DELAY_MS = 4200; // Gemini Free Tier: max 15 Req/Min → min. 4s Abstand
 
 // ── KI-Modell (in den Einstellungen wählbar) ──
@@ -3172,7 +3172,8 @@ function buildPrompt(cats) {
     '6. Anleitungen (immer hier wenn es eine Bedienungsanleitung ist)\n\n' +
     '## SONDERREGELN:\n' +
     '- Schutzkleidung, Arbeitsmittel, Werkzeug → Kategorie: Belege, steuer_relevant: true\n' +
-    '- Bedienungsanleitung, Handbuch, Manual → immer Kategorie: Anleitungen\n' +
+    '- Bedienungsanleitung, Handbuch, Manual → immer Kategorie: Anleitungen; art = Gerät oder Produkt (z. B. Waschmaschine), dokumenttyp = Hersteller und Modell (z. B. Bosch-WAX32); nie „Anleitung“ als art oder dokumenttyp\n' +
+    '- art und dokumenttyp nie mit dem Kategorienamen oder untereinander wiederholen – lieber konkreter werden (Gerät, Anbieter, Vertragsart)\n' +
     '- Riester, Rürup → Kategorie: Versicherungen\n\n' +
     korrekturenPromptTeil() +
     '## NAMENSKONVENTION:\n' +
@@ -3222,9 +3223,22 @@ function korrekturenPromptTeil() {
       ': falsch ' + fmt(k.vorschlag) + ' → richtig ' + fmt(k.gewaehlt)).join('\n') + '\n\n';
 }
 
+// Wortstamm zum Erkennen von Wiederholungen (Anleitungen/Anleitung, Versicherungen/Versicherung)
+function namensStamm(s) {
+  return String(s).toLowerCase().replace(/[^a-z0-9]/g, '').replace(/(en|n|e|s)$/, '');
+}
+
 function buildName(datum, katName, art, typ, person, ext) {
-  const parts = [datum, cleanPart(katName,40), cleanPart(art,30), cleanPart(typ,30), cleanPart(person,30)].filter(p => p && p.length > 0);
-  return parts.join('_') + (ext ? '.' + ext : '');
+  const teile = [];
+  const staemme = [];
+  for (const t of [cleanPart(katName,40), cleanPart(art,30), cleanPart(typ,30), cleanPart(person,30)]) {
+    if (!t) continue;
+    const st = namensStamm(t);
+    if (st && staemme.includes(st)) continue; // wiederholt Kategorie oder vorherigen Teil
+    staemme.push(st);
+    teile.push(t);
+  }
+  return [datum, ...teile].join('_') + (ext ? '.' + ext : '');
 }
 
 function cleanPart(s, maxLen) {
