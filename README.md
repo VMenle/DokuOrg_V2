@@ -32,7 +32,7 @@
 1. Dokument (PDF, JPG, PNG, WEBP, GIF, HEIC) in den `_Eingang`-Ordner legen
 2. In der App auf **„▶ Jetzt starten"** klicken
 3. Die KI analysiert, benennt um und legt ab – automatisch
-4. Unsichere Dokumente erscheinen unter „TODO – Unklar" zur manuellen Zuordnung; sie bleiben bis dahin im `_Eingang` und werden bei jedem Start erneut analysiert (der alte Eintrag wird durch das neue Ergebnis ersetzt)
+4. Unsichere Dokumente erscheinen unter „Unklar" zur manuellen Zuordnung; sie bleiben bis dahin im `_Eingang`. „▶ Jetzt starten" überspringt sie, „🔄 Unklare neu analysieren" prüft nur sie erneut. Dateien, die nur an einem technischen Fehler scheiterten (z. B. Guthaben leer), versucht „Jetzt starten" automatisch erneut.
 5. Jedes abgelegte Original wird unverändert und unter seinem ursprünglichen Namen in `_Archiv` gesichert. Den alten und neuen Namen zeigt das Protokoll.
 
 ### Eigene Regeln und Lernen aus Korrekturen

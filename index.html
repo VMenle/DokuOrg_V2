@@ -457,7 +457,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
   <div class="app-body">
     <div class="sidebar">
       <button class="nav-btn active" data-page="dashboard"><span class="nav-icon">🏠</span>Dashboard</button>
-      <button class="nav-btn" data-page="queue"><span class="nav-icon">📥</span>TODO - Unklar<span class="nav-badge" id="qBadge" style="display:none">0</span></button>
+      <button class="nav-btn" data-page="queue"><span class="nav-icon">📥</span>Unklar<span class="nav-badge" id="qBadge" style="display:none">0</span></button>
       <button class="nav-btn" data-page="kategorien"><span class="nav-icon">🗂</span>Kategorien</button>
       <button class="nav-btn" data-page="log"><span class="nav-icon">📋</span>Protokoll</button>
       <button class="nav-btn" data-page="versicherungen"><span class="nav-icon">🛡</span>Versicherungen<span class="nav-badge" id="vsBadge" style="display:none">0</span></button>
@@ -484,12 +484,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
           </div>
           <div class="run-actions">
             <button class="btn btn-primary" id="runBtn">▶ Jetzt starten</button>
+            <button class="btn btn-ghost" id="unklarBtn" title="Nur die unklaren Dateien erneut analysieren">🔄 Unklare neu analysieren</button>
           </div>
         </div>
         <div class="dash-grid">
           <div class="stat-card"><div class="stat-num" id="dash-month">0</div><div class="stat-label">Diesen Monat</div><div class="stat-sub">organisierte Dokumente</div></div>
           <div class="stat-card"><div class="stat-num" id="dash-total">0</div><div class="stat-label">Insgesamt</div><div class="stat-sub">verarbeitete Dokumente</div></div>
-          <div class="stat-card"><div class="stat-num" id="dash-queue">0</div><div class="stat-label">Warteschlange</div><div class="stat-sub">warten auf Zuordnung</div></div>
+          <div class="stat-card"><div class="stat-num" id="dash-queue">0</div><div class="stat-label">Unklar</div><div class="stat-sub">warten auf Zuordnung</div></div>
           <div class="stat-card"><div class="stat-num" id="dash-kats">0</div><div class="stat-label">Kategorien</div><div class="stat-sub">angelegt</div></div>
         </div>
         <div class="dash-section">
@@ -520,7 +521,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 
       <!-- QUEUE PAGE -->
       <div class="page" id="page-queue">
-        <div class="page-hd"><h1>TODO - Unklar</h1><p>Dokumente die manuell zugeordnet werden müssen</p></div>
+        <div class="page-hd"><h1>Unklar</h1><p>Dokumente, bei denen die KI nicht sicher genug war</p></div>
         <div id="queueContent"><div class="empty">✅ Keine offenen Dokumente</div></div>
       </div>
 
@@ -593,7 +594,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 
             <div class="card">
               <div class="card-title" style="margin-bottom:14px;">KI-Konfidenz Schwelle</div>
-              <p style="font-size:13px;color:#8ba4b8;margin-bottom:12px;line-height:1.5;">Dokumente werden automatisch abgelegt wenn die KI mindestens diese Sicherheit hat. Darunter → Warteschlange.</p>
+              <p style="font-size:13px;color:#8ba4b8;margin-bottom:12px;line-height:1.5;">Dokumente werden automatisch abgelegt wenn die KI mindestens diese Sicherheit hat. Darunter → Unklar.</p>
               <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;">
                 <label for="konfidenzSlider" class="konfidenz-val" id="konfidenzVal">80%</label>
                 <input type="range" class="konfidenz-slider" id="konfidenzSlider" min="50" max="99" step="1" value="80" aria-label="KI-Konfidenz Schwelle">
@@ -699,7 +700,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 // Kein SECRET im Frontend. Kein lokaler Algorithmus.
 // ══════════════════════════════════════════════
 const SUPABASE_VALIDATE_URL = 'https://qvvsuksdribtjkplaynu.supabase.co/functions/v1/validate-license';
-const APP_VERSION = '2026-11-22.5';
+const APP_VERSION = '2026-11-22.6';
 const GEMINI_REQUEST_DELAY_MS = 4200; // Gemini Free Tier: max 15 Req/Min → min. 4s Abstand
 let _licCheckAttempts = 0;
 const MAX_LIC_ATTEMPTS = 5;
@@ -1576,7 +1577,15 @@ function istTechnischerFehler(q) {
   return !!q.fehler || /^(Fehler:|Fehler bei Analyse|Timeout bei Analyse)/.test(q.reason || '');
 }
 
-async function runProcess(btn) {
+// Ist diese Datei als „unklar“ offen (echte Zuordnungsfrage, kein technischer Fehler)?
+function istUnklar(name, f) {
+  return queue.some(q => q.status === 'offen' && q.name === name && !istTechnischerFehler(q) &&
+    (q.groesse === undefined || (q.groesse === f.size && q.geaendert === f.lastModified)));
+}
+
+// nurUnklar=false: neue Dateien analysieren, unklare überspringen
+// nurUnklar=true:  nur die unklaren Dateien erneut analysieren
+async function runProcess(btn, {nurUnklar = false} = {}) {
   if (_prozessLaeuft) { toast('Prozess läuft bereits – bitte warten', 'warn'); return; }
   if (!await ensureWorkspace()) return;
   const apiKey = localStorage.getItem('ds_api_key');
@@ -1585,6 +1594,7 @@ async function runProcess(btn) {
 
   _prozessLaeuft = true;
   window.onbeforeunload = () => true;
+  const btnText = btn.textContent;
   btn.disabled = true; btn.textContent = '⏳ Läuft...';
   const progress = document.getElementById('progressWrap');
   const bar = document.getElementById('progressBar');
@@ -1593,7 +1603,7 @@ async function runProcess(btn) {
 
   try {
     const files = [];
-    let schonAbgelegt = 0;
+    let schonAbgelegt = 0, unklarUebersprungen = 0;
     for await (const [name, handle] of eingangsHandle.entries()) {
       if (handle.kind === 'file') {
         const f = await handle.getFile();
@@ -1601,6 +1611,8 @@ async function runProcess(btn) {
         if (allowed.includes(f.type) || name.match(/\.(pdf|jpg|jpeg|png|webp|gif|heic)$/i)) {
           // Bereits abgelegt (nur Löschen scheiterte) – erneute Analyse würde ein Duplikat ablegen
           if (istVerarbeitet(f)) { schonAbgelegt++; continue; }
+          const unklar = istUnklar(name, f);
+          if (unklar !== nurUnklar) { if (unklar) unklarUebersprungen++; continue; }
           files.push({name, handle, file:f});
         }
       }
@@ -1608,16 +1620,19 @@ async function runProcess(btn) {
     if (schonAbgelegt > 0) {
       toast(schonAbgelegt + ' Datei(en) im _Eingang sind bereits abgelegt (Kopie in Kategorie + _Archiv) und konnten nur nicht entfernt werden – bitte im _Eingang manuell löschen.', 'warn');
     }
-    // Jeder Start analysiert alle Dateien neu: alte offene Einträge dieser Dateien
-    // und technisch gescheiterte Einträge werden durch das neue Ergebnis ersetzt
+    // Alte offene Einträge der jetzt analysierten Dateien und technisch gescheiterte
+    // Einträge werden durch das neue Ergebnis ersetzt
     const namenImEingang = new Set(files.map(x => x.name));
     const vorher = queue.length;
     queue = queue.filter(q => !(q.status === 'offen' && (namenImEingang.has(q.name) || istTechnischerFehler(q))));
     if (queue.length !== vorher) { saveState(); renderQueue(); }
 
     if (files.length === 0) {
-      info.textContent = 'Keine Dokumente im Eingangsordner "_Eingang".';
-      toast('Eingangsordner ist leer', 'info');
+      const msg = nurUnklar ? 'Keine unklaren Dateien im _Eingang.'
+        : unklarUebersprungen > 0 ? 'Keine neuen Dokumente. ' + unklarUebersprungen + ' unklare Datei(en) liegen im _Eingang – über „🔄 Unklare neu analysieren“ erneut prüfen oder unter „Unklar“ zuordnen.'
+        : 'Keine Dokumente im Eingangsordner "_Eingang".';
+      info.textContent = msg;
+      toast(msg, 'info');
     } else {
       const sekundaerExists = categories.some(k => k.isSecondary);
       if (!sekundaerExists) {
@@ -1686,7 +1701,7 @@ async function runProcess(btn) {
       bar.style.width = '100%';
       const inQueue = queue.filter(q => q.status === 'offen').length - queueVorher;
       const teile = [abgelegt + ' abgelegt'];
-      if (inQueue > 0) teile.push(inQueue + ' in Warteschlange (liegen weiter im _Eingang)');
+      if (inQueue > 0) teile.push(inQueue + ' unklar (liegen weiter im _Eingang)');
       const statusMsg = (abbrechen ? 'Abgebrochen: ' : '') + teile.join(', ') +
         (abbrechen ? '. Rest bleibt im _Eingang für den nächsten Start.' : '.') +
         (abgelegt > 0 ? ' Neue Namen siehe Protokoll; Originale liegen in _Archiv.' : '');
@@ -1714,7 +1729,7 @@ async function runProcess(btn) {
   renderAll();
   _prozessLaeuft = false;
   window.onbeforeunload = null;
-  if (btn) { btn.disabled = false; btn.textContent = '▶ Jetzt starten'; }
+  if (btn) { btn.disabled = false; btn.textContent = btnText; }
   setTimeout(() => { progress.classList.remove('show'); bar.style.width='0%'; }, 3000);
 }
 
@@ -2079,7 +2094,9 @@ function renderQueue() {
 
   if (open.length === 0) { el.innerHTML = '<div class="empty">✅ Keine offenen Dokumente</div>'; return; }
   el.innerHTML =
-    '<div class="vs-klein" style="margin-bottom:10px;">Diese Dateien liegen weiter im _Eingang und werden bei jedem Start neu analysiert – oder hier manuell zuordnen.</div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">' +
+      '<span class="vs-klein">Diese Dateien liegen weiter im _Eingang. „▶ Jetzt starten“ überspringt sie – hier zuordnen oder erneut analysieren.</span>' +
+      '<button class="btn btn-ghost btn-sm" data-unklar-neu="1">🔄 Unklare neu analysieren</button></div>' +
     open.map(q =>
     '<div class="q-card">' +
     '<div class="q-card-name">📄 ' + esc(q.name) + '</div>' +
@@ -2090,7 +2107,7 @@ function renderQueue() {
   ).join('');
 }
 
-let _modalModus = 'queue'; // 'queue' = Warteschlange, 'log' = Korrektur im Protokoll
+let _modalModus = 'queue'; // 'queue' = Unklar, 'log' = Korrektur im Protokoll
 let _korrLogIdx = -1;
 
 function setModalTexte(badge, titel, hinweisTitel, okText, abbrechenText) {
@@ -2643,7 +2660,7 @@ async function deleteKategorie(i) {
   const queueRefs = queue.filter(q => q.status === 'offen' && q.kat && q.kat.toLowerCase() === kat.name.toLowerCase());
   let warnung = 'Kategorie "' + kat.name + '" löschen?\n\nDer Ordner auf deinem Gerät wird NICHT gelöscht.';
   if (queueRefs.length > 0) {
-    warnung += '\n\n⚠️ Achtung: ' + queueRefs.length + ' Dokument(e) in der Warteschlange wurden dieser Kategorie zugeordnet. Sie müssen danach neu zugeordnet werden.';
+    warnung += '\n\n⚠️ Achtung: ' + queueRefs.length + ' unklare(s) Dokument(e) wurden dieser Kategorie zugeordnet. Sie müssen danach neu zugeordnet werden.';
   }
   if (!confirm(warnung)) return;
   categories.splice(i, 1);
@@ -2729,7 +2746,7 @@ function updateLicInfo() {
 
 function deactivateLicense() {
   if (!confirm('Lizenz entfernen?\n\nDu benötigst danach eine neue Lizenznummer um die App zu nutzen.')) return;
-  const allesLoeschen = confirm('Sollen auch alle gespeicherten Daten gelöscht werden?\n\n• Kategorien\n• Warteschlange\n• Protokoll\n• API Key\n\n"Abbrechen" = nur Lizenz entfernen, Daten behalten.');
+  const allesLoeschen = confirm('Sollen auch alle gespeicherten Daten gelöscht werden?\n\n• Kategorien\n• Unklar-Liste\n• Protokoll\n• API Key\n\n"Abbrechen" = nur Lizenz entfernen, Daten behalten.');
   localStorage.removeItem('ds_license');
   localStorage.removeItem('ds_lic_data');
   if (allesLoeschen) {
@@ -3134,6 +3151,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Dashboard
   document.getElementById('runBtn')?.addEventListener('click', () => mitSperre(() => runProcess(document.getElementById('runBtn'))));
+  const unklarNeu = () => mitSperre(() => runProcess(document.getElementById('unklarBtn'), {nurUnklar:true}));
+  document.getElementById('unklarBtn')?.addEventListener('click', unklarNeu);
   document.getElementById('openBelegeCheckBtn')?.addEventListener('click', openBelegeCheck);
 
   // Dashboard Log – Event Delegation (Fix 17)
@@ -3147,6 +3166,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Queue Modal – Event Delegation
   document.getElementById('queueContent')?.addEventListener('click', e => {
+    if (e.target.closest('[data-unklar-neu]')) { unklarNeu(); return; }
     const btn = e.target.closest('[data-modal-id]');
     if (btn) openModal(parseInt(btn.dataset.modalId));
   });
