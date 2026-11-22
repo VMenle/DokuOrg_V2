@@ -14,15 +14,16 @@
 
 ### Einrichtung (einmalig, ca. 5 Minuten)
 
-1. App öffnen: `https://vmenle.github.io/DokumentenOrganizer/`
+1. App öffnen: `https://vmenle.github.io/DokuOrg_V2/`
 2. **Lizenznummer** eingeben → Aktivieren
 3. **Gemini API Key** eingeben:
    - Auf [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) gehen
    - „Create API Key" klicken
    - Key kopieren und in der App einfügen
 4. **Arbeitsordner** auswählen:
-   - Beliebigen Ordner auf deinem Gerät wählen
-   - Die App legt automatisch `_Eingang` und alle Kategorieordner an
+   - Den Ordner wählen, der `_Eingang` enthalten soll (nicht `_Eingang` selbst und keinen Kategorieordner – das lehnt die App ab)
+   - Bei einem leeren Ordner fragt die App nach, bevor sie `_Eingang` und die Kategorieordner anlegt
+   - Liegt eine bestehende Struktur eine Ebene tiefer, schlägt die App diesen Unterordner vor
    - **Tipp:** Google Drive / OneDrive Desktop-Ordner als Arbeitsordner → automatisches Backup
 5. Kategorien können bei Bedarf angepasst werden
 
@@ -31,7 +32,16 @@
 1. Dokument (PDF, JPG, PNG, WEBP, GIF, HEIC) in den `_Eingang`-Ordner legen
 2. In der App auf **„▶ Jetzt starten"** klicken
 3. Die KI analysiert, benennt um und legt ab – automatisch
-4. Unsichere Dokumente erscheinen unter „TODO – Unklar" zur manuellen Zuordnung
+4. Unsichere Dokumente erscheinen unter „TODO – Unklar" zur manuellen Zuordnung; sie bleiben bis dahin im `_Eingang` und werden nicht erneut analysiert
+5. Jedes abgelegte Original wird unverändert und unter seinem ursprünglichen Namen in `_Archiv` gesichert. Den alten und neuen Namen zeigt das Protokoll.
+
+### Datensicherheit beim Ablegen
+
+- Zieldatei und Archivkopie werden geschrieben und per Größe und SHA-256-Prüfsumme gegen das Original geprüft
+- Erst danach wird das Original aus `_Eingang` entfernt – und nur, wenn dort noch genau dieselbe Datei liegt
+- Schlägt irgendein Schritt fehl, bleibt das Original unverändert im `_Eingang`
+- Die App verarbeitet nie in zwei Tabs gleichzeitig
+- Liegt der Arbeitsordner in Google Drive: Drive lädt im Hintergrund hoch – Gerät erst ausschalten, wenn die Synchronisierung fertig ist
 
 ### Nach jedem Browser-Neustart
 
@@ -49,7 +59,7 @@ Beispiel: 20250315_Versicherungen_KFZ_Rechnung_Allianz.pdf
 
 | Was | Wert |
 |---|---|
-| Max. Dateigröße | 15 MB |
+| Max. Dateigröße | 14 MB (Gemini erlaubt max. 20 MB pro Anfrage inkl. Base64) |
 | Formate | PDF, JPG, PNG, WEBP, GIF, HEIC |
 | Gemini Free Tier | 1.500 Analysen/Tag |
 | Pause zwischen Dateien | 4,2 Sekunden (Rate-Limit-Schutz) |
@@ -99,8 +109,13 @@ Beispiel: 20250315_Versicherungen_KFZ_Rechnung_Allianz.pdf
 → Modell nicht gefunden – Seite neu laden, API Key in Einstellungen prüfen
 
 **„Lizenz wird nicht akzeptiert"**
-→ Internetverbindung prüfen (Validierung läuft über Supabase)
+→ Internetverbindung prüfen (die Erstaktivierung läuft über Supabase)
 → Lizenz möglicherweise abgelaufen oder gesperrt – Admin kontaktieren
+
+**Lizenz und API Key müssen immer wieder eingegeben werden**
+→ Die App löscht die Lizenz nur bei ausdrücklicher Sperre durch den Server oder nach Ablaufdatum; Netzwerk- und Serverfehler werden ignoriert. Den API Key löscht sie nur über „Lizenz entfernen → alles löschen“.
+→ Sind trotzdem beide weg, hat der Browser die Websitedaten gelöscht: `chrome://settings/content/siteData` prüfen („Daten beim Schließen aller Fenster löschen“ aus).
+→ Immer dieselbe Adresse verwenden – jede Adresse hat ihren eigenen Speicher.
 
 **„Datei nicht gefunden" beim manuellen Zuordnen**
 → Datei wurde manuell aus `_Eingang` verschoben – Eintrag wird automatisch als erledigt markiert

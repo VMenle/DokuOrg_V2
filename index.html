@@ -740,11 +740,13 @@ async function backgroundLicenseCheck() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: lic })
     });
-    if (!res.ok) return; // Bei Netzwerkfehler: still weiterlaufen
+    if (!res.ok) return; // Server-/Netzwerkfehler: weiterlaufen
 
-    const data = await res.json();
-    if (!data.valid) {
-      // Lizenz wurde serverseitig gesperrt oder ist abgelaufen
+    let data;
+    try { data = await res.json(); } catch(e) { return; }
+    // Nur bei ausdrücklicher Sperre löschen – unerwartete Antworten ignorieren
+    if (!data || data.valid !== true) {
+      if (!data || data.valid !== false) return;
       localStorage.removeItem('ds_license');
       localStorage.removeItem('ds_lic_data');
       toast('Lizenz abgelaufen oder gesperrt – bitte neu einloggen', 'err');
@@ -957,6 +959,10 @@ function saveState() {
 // INIT
 // ══════════════════════════════════════════════
 async function initApp() {
+  // Browser bitten, die gespeicherten Daten nicht automatisch zu verwerfen
+  try {
+    if (navigator.storage?.persist && !(await navigator.storage.persisted())) await navigator.storage.persist();
+  } catch(e) {}
   const lic = localStorage.getItem('ds_license');
   if (!lic) { showScreen('licenseScreen'); return; }
   const licData = getLicenseData();
@@ -1143,7 +1149,7 @@ async function workspaceErreichbar() {
   } catch(e) { return false; }
 }
 
-const RESERVIERTE_ORDNER = ['_eingang', '_papierkorb', '_unsicher'];
+const RESERVIERTE_ORDNER = ['_eingang', '_papierkorb', '_unsicher', '_archiv'];
 
 async function _hatOrdner(parent, name) {
   try { await parent.getDirectoryHandle(name, {create:false}); return true; }
@@ -1439,7 +1445,39 @@ function showPage(id, btn) {
 // ══════════════════════════════════════════════
 // MAIN PROCESS
 // ══════════════════════════════════════════════
-let _prozessLaeuft = false; // Schutz gegen Doppelstart
+let _prozessLaeuft = false; // Schutz gegen Doppelstart im selben Tab
+let _syncHinweisGezeigt = false;
+const MAX_DATEIGROESSE_MB = 14; // Gemini: max. 20 MB pro Anfrage, Base64 vergrößert um ~33 %
+
+// Sperre gegen gleichzeitige Dateioperationen in mehreren Tabs/Fenstern
+async function mitSperre(fn) {
+  if (!navigator.locks) return fn();
+  return navigator.locks.request('dokuorg-dateien', {ifAvailable:true}, async lock => {
+    if (!lock) {
+      toast('Die App arbeitet gerade in einem anderen Tab oder Fenster. Bitte dort warten oder den anderen Tab schließen.', 'warn');
+      return;
+    }
+    return fn();
+  });
+}
+
+// Dateien, die abgelegt wurden, aber nicht aus _Eingang gelöscht werden konnten
+function dateiFingerabdruck(f) { return f.name + '|' + f.size + '|' + f.lastModified; }
+let _verarbeitet = _loadSafe('ds_verarbeitet', []);
+function istVerarbeitet(f) { return _verarbeitet.includes(dateiFingerabdruck(f)); }
+function merkeVerarbeitet(f) {
+  const fp = dateiFingerabdruck(f);
+  if (_verarbeitet.includes(fp)) return;
+  _verarbeitet.push(fp);
+  if (_verarbeitet.length > 500) _verarbeitet = _verarbeitet.slice(-500);
+  try { localStorage.setItem('ds_verarbeitet', JSON.stringify(_verarbeitet)); } catch(e) {}
+}
+
+// Steht genau diese Datei schon offen in der Warteschlange?
+function offenInQueue(name, f) {
+  return queue.some(q => q.status === 'offen' && q.name === name &&
+    (q.groesse === undefined || (q.groesse === f.size && q.geaendert === f.lastModified)));
+}
 
 async function runProcess(btn) {
   if (_prozessLaeuft) { toast('Prozess läuft bereits – bitte warten', 'warn'); return; }
@@ -1458,19 +1496,27 @@ async function runProcess(btn) {
 
   try {
     const files = [];
+    let wartenInQueue = 0, schonAbgelegt = 0;
     for await (const [name, handle] of eingangsHandle.entries()) {
       if (handle.kind === 'file') {
         const f = await handle.getFile();
         const allowed = ['application/pdf','image/jpeg','image/jpg','image/png','image/webp','image/gif','image/heic'];
         if (allowed.includes(f.type) || name.match(/\.(pdf|jpg|jpeg|png|webp|gif|heic)$/i)) {
+          if (istVerarbeitet(f)) { schonAbgelegt++; continue; }
+          if (offenInQueue(name, f)) { wartenInQueue++; continue; }
           files.push({name, handle, file:f});
         }
       }
     }
+    if (schonAbgelegt > 0) {
+      toast(schonAbgelegt + ' Datei(en) im _Eingang sind bereits abgelegt (Kopie in Kategorie + _Archiv) und konnten nur nicht entfernt werden – bitte im _Eingang manuell löschen.', 'warn');
+    }
 
     if (files.length === 0) {
-      info.textContent = 'Keine neuen Dokumente im Eingangsordner "_Eingang".';
-      toast('Eingangsordner ist leer', 'info');
+      info.textContent = wartenInQueue > 0
+        ? 'Keine neuen Dokumente. ' + wartenInQueue + ' warten in der Warteschlange auf manuelle Zuordnung.'
+        : 'Keine neuen Dokumente im Eingangsordner "_Eingang".';
+      toast(wartenInQueue > 0 ? 'Keine neuen Dokumente' : 'Eingangsordner ist leer', 'info');
     } else {
       const sekundaerExists = categories.some(k => k.isSecondary);
       if (!sekundaerExists) {
@@ -1480,7 +1526,9 @@ async function runProcess(btn) {
       info.textContent = files.length + ' Dokument(e) gefunden – analysiere...';
       let done = 0;
       let fehler = 0;
+      let abgelegt = 0;
       let abbrechen = false;
+      const queueVorher = queue.filter(q => q.status === 'offen').length;
 
       for (const item of files) {
         if (abbrechen) break;
@@ -1488,7 +1536,7 @@ async function runProcess(btn) {
         bar.style.width = Math.round((done / files.length) * 100) + '%';
 
         try {
-          await processFile(item, apiKey);
+          if (await processFile(item, apiKey) === 'abgelegt') abgelegt++;
         } catch(e) {
           fehler++;
           console.error('Fehler bei', item.name, ':', e);
@@ -1514,10 +1562,10 @@ async function runProcess(btn) {
             toast('📁 Ordnerzugriff verweigert – bitte Ordner neu verbinden', 'err');
           } else if (e.name === 'AbortError' || msg.includes('Timeout')) {
             toast('⏱ Timeout bei "' + item.name + '" – Datei in Warteschlange', 'warn');
-            addToQueue(item.name, '', '', '', '', '', false, 'Timeout bei Analyse – bitte manuell zuordnen.', 0);
+            addToQueue(item.name, '', '', '', '', '', false, 'Timeout bei Analyse – bitte manuell zuordnen.', 0, item.file);
           } else {
             addToQueue(item.name, '', '', '', '', '', false,
-              'Fehler bei Analyse: ' + msg.substring(0, 200) + ' – bitte manuell zuordnen.', 0);
+              'Fehler: ' + msg.substring(0, 200) + ' – Datei liegt unverändert im _Eingang, bitte manuell zuordnen.', 0, item.file);
             toast('⚠ Fehler bei "' + item.name + '": ' + msg.substring(0, 100), 'warn');
           }
         }
@@ -1532,12 +1580,18 @@ async function runProcess(btn) {
       }
 
       bar.style.width = '100%';
-      const erfolgreich = done - fehler;
-      const statusMsg = abbrechen
-        ? erfolgreich + ' verarbeitet, dann abgebrochen. Rest beim nächsten Start.'
-        : erfolgreich + ' Dokument(e) fertig' + (fehler > 0 ? ', ' + fehler + ' in Warteschlange.' : ' ✓');
+      const inQueue = queue.filter(q => q.status === 'offen').length - queueVorher;
+      const teile = [abgelegt + ' abgelegt'];
+      if (inQueue > 0) teile.push(inQueue + ' in Warteschlange (liegen weiter im _Eingang)');
+      const statusMsg = (abbrechen ? 'Abgebrochen: ' : '') + teile.join(', ') +
+        (abbrechen ? '. Rest bleibt im _Eingang für den nächsten Start.' : '.') +
+        (abgelegt > 0 ? ' Neue Namen siehe Protokoll; Originale liegen in _Archiv.' : '');
       info.textContent = statusMsg;
-      if (!abbrechen) toast(statusMsg, erfolgreich > 0 ? 'ok' : 'info');
+      if (!abbrechen) toast(statusMsg, abgelegt > 0 ? 'ok' : 'info');
+      if (abgelegt > 0 && !_syncHinweisGezeigt) {
+        _syncHinweisGezeigt = true;
+        toast('Hinweis: Liegt der Arbeitsordner in Google Drive, lädt Drive die Dateien im Hintergrund hoch. Gerät erst ausschalten, wenn die Synchronisierung fertig ist.', 'info');
+      }
       renderFolderView();
     }
   } catch(e) {
@@ -1564,9 +1618,9 @@ async function processFile(item, apiKey) {
   const {name, handle, file} = item;
 
   // Dateigröße prüfen (max 15MB)
-  if (file.size > 15 * 1024 * 1024) {
-    addToQueue(name, '', '', '', '', '', false, 'Datei zu groß (>' + Math.round(file.size/1024/1024) + 'MB). Bitte manuell zuordnen.');
-    return;
+  if (file.size > MAX_DATEIGROESSE_MB * 1024 * 1024) {
+    addToQueue(name, '', '', '', '', '', false, 'Datei zu groß (' + (file.size/1024/1024).toFixed(1) + ' MB, max. ' + MAX_DATEIGROESSE_MB + ' MB). Bitte manuell zuordnen.', 0, file);
+    return 'queue';
   }
 
   // Base64 kodieren
@@ -1583,10 +1637,10 @@ async function processFile(item, apiKey) {
   let response;
   try {
     response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
       {
         method:'POST',
-        headers:{'Content-Type':'application/json'},
+        headers:{'Content-Type':'application/json', 'x-goog-api-key': apiKey},
         body: JSON.stringify({
           contents:[{parts:[
             {inline_data:{mime_type:mimeType, data:base64}},
@@ -1625,8 +1679,8 @@ async function processFile(item, apiKey) {
 
   if (!rawText) {
     const reason = data.candidates?.[0]?.finishReason || 'UNKNOWN';
-    addToQueue(name, '', '', '', '', '', false, 'Gemini gab keine Antwort zurück (finishReason: ' + reason + ')');
-    return;
+    addToQueue(name, '', '', '', '', '', false, 'Gemini gab keine Antwort zurück (finishReason: ' + reason + ')', 0, file);
+    return 'queue';
   }
 
   // JSON parsen
@@ -1677,10 +1731,10 @@ async function processFile(item, apiKey) {
     addToLog(name, tatsaecklicherName, katMatch.name, konfidenz, steuer, 'Automatisch');
     if (tatsaecklicherName !== newName) toast('✓ ' + tatsaecklicherName + ' (umbenannt – Name existierte bereits)', 'warn');
     else toast('✓ ' + tatsaecklicherName, 'ok');
-  } else {
-    // Warteschlange
-    addToQueue(name, kategorie, art, typ, person, datum, steuer, unklarGrund, konfidenz);
+    return 'abgelegt';
   }
+  addToQueue(name, kategorie, art, typ, person, datum, steuer, unklarGrund, konfidenz, file);
+  return 'queue';
 }
 
 // ══════════════════════════════════════════════
@@ -1698,27 +1752,62 @@ async function freienNamenFinden(destFolder, wunschName) {
   for (let counter = 1; counter <= 999; counter++) {
     try {
       await destFolder.getFileHandle(finalName, {create:false});
-      // Datei existiert → nächsten Namen versuchen
-      finalName = base + '_' + counter + ext;
+      finalName = base + '_' + counter + ext; // Datei existiert → nächster Name
     } catch(e) {
-      // Name ist frei
-      return finalName;
+      if (e.name === 'NotFoundError') return finalName; // nur das heißt „frei“
+      if (e.name === 'TypeMismatchError') { finalName = base + '_' + counter + ext; continue; } // Ordner gleichen Namens
+      throw new Error('Zielordner nicht lesbar (' + e.name + '): ' + e.message);
     }
   }
   // Nach 999 Versuchen: sicherheitshalber abbrechen statt möglicherweise zu überschreiben
   throw new Error('Konnte keinen freien Dateinamen finden nach 999 Versuchen. Bitte Zielordner aufräumen.');
 }
 
+const ARCHIV_ORDNER = '_Archiv';
+
+async function sha256Hex(buffer) {
+  const h = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Schreibt buffer als NEUE Datei (nie überschreiben) und prüft Größe + SHA-256.
+ * Bei jedem Fehler wird die halb geschriebene Zieldatei entfernt.
+ */
+async function schreibeVerifiziert(destFolder, wunschName, buffer, hash) {
+  const finalName = await freienNamenFinden(destFolder, wunschName);
+  let destHandle = null;
+  try {
+    destHandle = await destFolder.getFileHandle(finalName, {create:true});
+    const writable = await destHandle.createWritable();
+    try {
+      await writable.write(buffer);
+      await writable.close();
+    } catch(e) {
+      try { await writable.abort(); } catch(_) {}
+      throw e;
+    }
+    const geschrieben = await (await destHandle.getFile()).arrayBuffer();
+    if (geschrieben.byteLength !== buffer.byteLength) {
+      throw new Error('falsche Größe (' + geschrieben.byteLength + ' statt ' + buffer.byteLength + ' Bytes)');
+    }
+    if (await sha256Hex(geschrieben) !== hash) throw new Error('Inhalt weicht ab (Prüfsumme)');
+    return finalName;
+  } catch(e) {
+    if (destHandle) { try { await destFolder.removeEntry(finalName); } catch(_) {} }
+    throw new Error('„' + finalName + '“ konnte nicht sicher geschrieben werden: ' + e.message);
+  }
+}
+
 /**
  * Datei sicher verschieben:
- * 1. Quelle lesen + Größe merken
- * 2. Ziel schreiben
- * 3. Zielgröße verifizieren
- * 4. NUR BEI ERFOLG: Quelle löschen
- * 5. BEI FEHLER: Ziel aufräumen, Quelle bleibt erhalten
+ * 1. Quelle lesen, Prüfsumme bilden
+ * 2. Ziel schreiben + Größe/Prüfsumme verifizieren
+ * 3. Optional: Original unverändert nach _Archiv kopieren + verifizieren
+ * 4. Nur wenn unter dem Namen noch GENAU die gelesene Datei liegt: Quelle löschen
+ * Jeder Fehler vor Schritt 4 lässt die Quelle unangetastet.
  */
-async function sicherVerschieben(srcFileHandle, srcFolderHandle, destFolderHandle, wunschName) {
-  // Schritt 1: Quelle lesen
+async function sicherVerschieben(srcFileHandle, srcFolderHandle, destFolderHandle, wunschName, {archivieren = false} = {}) {
   let srcFile, srcBuffer;
   try {
     srcFile = await srcFileHandle.getFile();
@@ -1726,108 +1815,54 @@ async function sicherVerschieben(srcFileHandle, srcFolderHandle, destFolderHandl
   } catch(e) {
     throw new Error('Quelldatei konnte nicht gelesen werden: ' + e.message);
   }
-
   if (srcBuffer.byteLength === 0) {
     throw new Error('Quelldatei ist leer (0 Bytes) – Vorgang abgebrochen um Datenverlust zu vermeiden.');
   }
+  const hash = await sha256Hex(srcBuffer);
 
-  // Schritt 2: Freien Namen finden
-  const finalName = await freienNamenFinden(destFolderHandle, wunschName);
+  const finalName = await schreibeVerifiziert(destFolderHandle, wunschName, srcBuffer, hash);
 
-  // Schritt 3: Ziel schreiben
-  let destHandle;
-  try {
-    destHandle = await destFolderHandle.getFileHandle(finalName, {create:true});
-    const writable = await destHandle.createWritable();
+  if (archivieren) {
     try {
-      await writable.write(srcBuffer);
-      await writable.close();
+      const archiv = await workspaceHandle.getDirectoryHandle(ARCHIV_ORDNER, {create:true});
+      await schreibeVerifiziert(archiv, srcFileHandle.name, srcBuffer, hash);
     } catch(e) {
-      try { await writable.abort(); } catch(_) {}
-      throw e;
-    }
-  } catch(e) {
-    // Schreiben fehlgeschlagen → Ziel aufräumen
-    if (destHandle) {
       try { await destFolderHandle.removeEntry(finalName); } catch(_) {}
+      throw new Error('Sicherungskopie in ' + ARCHIV_ORDNER + ' fehlgeschlagen: ' + e.message + ' – Original bleibt im _Eingang.');
     }
-    throw new Error('Zieldatei konnte nicht geschrieben werden: ' + e.message + ' – Quelldatei ist noch vorhanden.');
   }
 
-  // Schritt 4: Verifizieren
+  let aktuell = null;
+  try { aktuell = await srcFileHandle.getFile(); } catch(e) {}
+  if (aktuell && (aktuell.size !== srcFile.size || aktuell.lastModified !== srcFile.lastModified)) {
+    toast('Unter dem Namen „' + srcFileHandle.name + '“ liegt inzwischen eine neue Datei. Sie bleibt im Quellordner und wird beim nächsten Start verarbeitet.', 'warn');
+    return finalName;
+  }
   try {
-    const destFile = await destHandle.getFile();
-    if (destFile.size !== srcBuffer.byteLength) {
-      // Größen stimmen nicht → Ziel löschen, Fehler werfen
-      try { await destFolderHandle.removeEntry(finalName); } catch(_) {}
-      throw new Error(
-        'Schreibfehler: Zieldatei hat falsche Größe (' + destFile.size + ' vs ' + srcBuffer.byteLength + ' Bytes). ' +
-        'Zieldatei wurde gelöscht – Quelldatei ist noch vorhanden.'
-      );
-    }
+    if (aktuell) await srcFolderHandle.removeEntry(srcFileHandle.name);
   } catch(e) {
-    if (e.message.includes('Schreibfehler')) throw e;
-    // Verifikation selbst fehlgeschlagen → sicherheitshalber nicht löschen
-    throw new Error('Konnte Zieldatei nicht verifizieren: ' + e.message + ' – Quelldatei bleibt zur Sicherheit erhalten.');
+    console.warn('Quelldatei konnte nicht gelöscht werden:', e.message);
+    merkeVerarbeitet(srcFile);
+    toast('„' + srcFileHandle.name + '“ wurde abgelegt, konnte aber nicht aus dem Quellordner entfernt werden. Bitte dort manuell löschen – sie wird nicht erneut verarbeitet.', 'warn');
   }
-
-  // Schritt 5: Erst jetzt Quelle löschen
-  try {
-    await srcFolderHandle.removeEntry(srcFileHandle.name);
-  } catch(e) {
-    // Löschen fehlgeschlagen – Datei existiert jetzt doppelt, das ist OK (kein Datenverlust)
-    console.warn('Quelldatei konnte nicht gelöscht werden (Duplikat im Eingang):', e.message);
-    // Kein Fehler werfen – die Datei wurde erfolgreich ins Ziel geschrieben
-  }
-
   return finalName;
 }
 
-/**
- * Datei sicher kopieren (für Steuer-Verknüpfung):
- * Kein Löschen der Quelle – nur schreiben + verifizieren.
- */
+/** Datei sicher kopieren (Sekundärordner): Quelle bleibt, Ziel wird verifiziert. */
 async function sicherKopieren(srcFolderName, destFolderName, fileName) {
   const srcFolder = await workspaceHandle.getDirectoryHandle(srcFolderName, {create:false});
-  const srcHandle = await srcFolder.getFileHandle(fileName);
-  const srcFile = await srcHandle.getFile();
-  const srcBuffer = await srcFile.arrayBuffer();
-
-  if (srcBuffer.byteLength === 0) {
-    throw new Error('Quelldatei für Steuer-Kopie ist leer.');
-  }
-
+  const srcBuffer = await (await (await srcFolder.getFileHandle(fileName)).getFile()).arrayBuffer();
+  if (srcBuffer.byteLength === 0) throw new Error('Quelldatei für Kopie ist leer.');
   const destFolder = await workspaceHandle.getDirectoryHandle(destFolderName, {create:true});
-  const finalName = await freienNamenFinden(destFolder, fileName);
-
-  const destHandle = await destFolder.getFileHandle(finalName, {create:true});
-  const writable = await destHandle.createWritable();
-  try {
-    await writable.write(srcBuffer);
-    await writable.close();
-  } catch(e) {
-    try { await writable.abort(); } catch(_) {}
-    try { await destFolder.removeEntry(finalName); } catch(_) {}
-    throw new Error('Steuer-Kopie fehlgeschlagen: ' + e.message);
-  }
-
-  // Verifizieren
-  const destFile = await destHandle.getFile();
-  if (destFile.size !== srcBuffer.byteLength) {
-    try { await destFolder.removeEntry(finalName); } catch(_) {}
-    throw new Error('Steuer-Kopie: Größenprüfung fehlgeschlagen.');
-  }
-
-  return finalName;
+  return schreibeVerifiziert(destFolder, fileName, srcBuffer, await sha256Hex(srcBuffer));
 }
 
-/** Kompatibilitäts-Wrapper für bestehende Aufrufe */
+/** Aus _Eingang in Kategorieordner verschieben – Original wird in _Archiv gesichert. */
 async function moveFile(srcHandle, srcFolderHandle, destFolderName, newName) {
   let destFolder;
   try {
     destFolder = await workspaceHandle.getDirectoryHandle(destFolderName, {create:false});
   } catch(e) {
-    // Ordner nicht gefunden – Kategorie-Ordner prüfen und Dialog anzeigen
     const result = await showFolderMissingDialog(destFolderName);
     if (result === 'create') {
       destFolder = await workspaceHandle.getDirectoryHandle(destFolderName, {create:true});
@@ -1836,7 +1871,7 @@ async function moveFile(srcHandle, srcFolderHandle, destFolderName, newName) {
       throw new Error('Zielordner "' + destFolderName + '" nicht gefunden – Vorgang abgebrochen');
     }
   }
-  return sicherVerschieben(srcHandle, srcFolderHandle, destFolder, newName);
+  return sicherVerschieben(srcHandle, srcFolderHandle, destFolder, newName, {archivieren:true});
 }
 
 function showFolderMissingDialog(folderName) {
@@ -1873,31 +1908,41 @@ function showFolderMissingDialog(folderName) {
 }
 
 /** Datei aus Eingang in Kategorie verschieben (für Queue-Auflösung) */
-async function moveFromQueueToCategory(fileName, destFolderName, newName) {
-  // Quelle im _Eingang suchen
+async function moveFromQueueToCategory(item, destFolderName, newName) {
   const eingang = await workspaceHandle.getDirectoryHandle('_Eingang', {create:false});
   let srcHandle = null;
-  try { srcHandle = await eingang.getFileHandle(fileName); } catch(e) {}
+  try { srcHandle = await eingang.getFileHandle(item.name); } catch(e) {}
+  if (!srcHandle) throw new Error('nicht im Eingangsordner');
 
-  if (!srcHandle) {
-    throw new Error('nicht im Eingangsordner');
+  // Liegt unter dem Namen noch dieselbe Datei wie beim Einreihen?
+  if (item.groesse !== undefined) {
+    const f = await srcHandle.getFile();
+    if (f.size !== item.groesse || f.lastModified !== item.geaendert) throw new Error('andere Datei');
   }
 
   const destFolder = await workspaceHandle.getDirectoryHandle(destFolderName, {create:true});
-  return sicherVerschieben(srcHandle, eingang, destFolder, newName);
+  return sicherVerschieben(srcHandle, eingang, destFolder, newName, {archivieren:true});
 }
 
 // ══════════════════════════════════════════════
 // QUEUE
 // ══════════════════════════════════════════════
-function addToQueue(name, kat, art, typ, person, datum, steuer, reason, konfidenz) {
+function addToQueue(name, kat, art, typ, person, datum, steuer, reason, konfidenz, file) {
   _queueIdCounter++;
   queue.push({
     id: parseInt(_queueIdCounter), // Always integer - prevents XSS via onclick
     name, kat, art, typ, person, datum, steuer,
     reason, konfidenz: konfidenz||0, status:'offen',
+    groesse: file ? file.size : undefined,
+    geaendert: file ? file.lastModified : undefined,
     added: new Date().toISOString().split('T')[0]
   });
+  // Erledigte Einträge begrenzen, damit der Speicher nicht vollläuft
+  const erledigt = queue.filter(q => q.status !== 'offen');
+  if (erledigt.length > 100) {
+    const behalten = new Set(erledigt.slice(-100));
+    queue = queue.filter(q => q.status === 'offen' || behalten.has(q));
+  }
 }
 
 function renderQueue() {
@@ -1994,6 +2039,7 @@ async function resolveItem() {
   const folderName = sel.value;
   const katName = sel.selectedIndex > 0 ? (sel.options[sel.selectedIndex].dataset.name || '') : '';
   if (!folderName || !katName) { toast('Bitte Kategorie wählen', 'warn'); return; }
+  if (_prozessLaeuft) { toast('Bitte warten, bis die laufende Verarbeitung fertig ist', 'warn'); return; }
   if (!await ensureWorkspace()) return;
 
   let datumRaw = document.getElementById('m-datum').value.trim();
@@ -2010,7 +2056,7 @@ async function resolveItem() {
   btn.textContent = '⏳...'; btn.disabled = true;
 
   try {
-    const finalName = await moveFromQueueToCategory(item.name, folderName, newName);
+    const finalName = await moveFromQueueToCategory(item, folderName, newName);
 
     if (steuer) {
       const sekundaerKats = categories.filter(k => k.isSecondary && k.folderName !== folderName);
@@ -2028,11 +2074,14 @@ async function resolveItem() {
     toast('✓ Abgelegt: ' + finalName, 'ok');
     btn.textContent = '✓ Ablegen'; btn.disabled = false;
   } catch(e) {
-    const msg = e.message.includes('nicht im Eingangsordner')
-      ? 'Datei wurde nicht gefunden – sie wurde möglicherweise bereits manuell verschoben. Eintrag wird als erledigt markiert.'
-      : 'Fehler: ' + e.message;
-    toast(msg, 'err');
-    if (e.message.includes('nicht im Eingangsordner')) {
+    const veraltet = e.message === 'nicht im Eingangsordner' || e.message === 'andere Datei';
+    const msg = e.message === 'andere Datei'
+      ? 'Unter diesem Namen liegt inzwischen eine andere Datei im _Eingang – sie wird beim nächsten Start neu analysiert. Eintrag wird geschlossen.'
+      : e.message === 'nicht im Eingangsordner'
+        ? 'Datei wurde nicht gefunden – sie wurde möglicherweise bereits manuell verschoben. Eintrag wird als erledigt markiert.'
+        : 'Fehler: ' + e.message + ' – die Datei liegt unverändert im _Eingang.';
+    toast(msg, veraltet ? 'warn' : 'err');
+    if (veraltet) {
       item.status = 'erledigt'; saveState(); renderAll();
       document.getElementById('queueOverlay').classList.remove('active');
     }
@@ -2663,7 +2712,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Dashboard
-  document.getElementById('runBtn')?.addEventListener('click', () => runProcess(document.getElementById('runBtn')));
+  document.getElementById('runBtn')?.addEventListener('click', () => mitSperre(() => runProcess(document.getElementById('runBtn'))));
   document.getElementById('openBelegeCheckBtn')?.addEventListener('click', openBelegeCheck);
 
   // Dashboard Log – Event Delegation (Fix 17)
@@ -2686,7 +2735,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('m-person')?.addEventListener('input', updatePreview);
   document.getElementById('m-datum')?.addEventListener('input', updatePreview);
   document.getElementById('skipModalBtn')?.addEventListener('click', skipModal);
-  document.getElementById('resolveBtn')?.addEventListener('click', resolveItem);
+  document.getElementById('resolveBtn')?.addEventListener('click', () => mitSperre(resolveItem));
 
   // Kategorien – Event Delegation
   document.getElementById('katList')?.addEventListener('click', e => {
@@ -2717,7 +2766,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!btn) return;
     const idx = parseInt(btn.dataset.belegeIdx);
     if (btn.dataset.action === 'behalten') belegeBehalten(idx);
-    else if (btn.dataset.action === 'papierkorb') belegeInPapierkorb(idx);
+    else if (btn.dataset.action === 'papierkorb') mitSperre(() => belegeInPapierkorb(idx));
   });
   document.getElementById('closeBelegeCheckBtn')?.addEventListener('click', closeBelegeCheck);
   document.getElementById('refreshFolderViewBtn')?.addEventListener('click', renderFolderView);
