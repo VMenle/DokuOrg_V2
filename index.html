@@ -706,7 +706,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 // Kein SECRET im Frontend. Kein lokaler Algorithmus.
 // ══════════════════════════════════════════════
 const SUPABASE_VALIDATE_URL = 'https://qvvsuksdribtjkplaynu.supabase.co/functions/v1/validate-license';
-const APP_VERSION = '2026-11-22.9';
+const APP_VERSION = '2026-11-22.10';
 const GEMINI_REQUEST_DELAY_MS = 4200; // Gemini Free Tier: max 15 Req/Min → min. 4s Abstand
 
 // ── KI-Modell (in den Einstellungen wählbar) ──
@@ -727,12 +727,18 @@ function geminiGenConfig(maxOut, extra) {
   return Object.assign(cfg, extra || {});
 }
 
-function modellAuswahlFuellen(liste) {
+// Nur Modelle anbieten, die Google für diesen Key gemeldet hat
+function modellAuswahlFuellen() {
   const sel = document.getElementById('modellSelect');
   if (!sel) return;
   const aktuell = geminiModell();
-  const namen = [...new Set([aktuell, STANDARD_MODELL, 'gemini-2.5-flash-lite', ...(liste || [])])];
-  sel.innerHTML = namen.map(n => '<option value="' + esc(n) + '"' + (n === aktuell ? ' selected' : '') + '>' + esc(n) + (n === STANDARD_MODELL ? ' (Standard)' : '') + '</option>').join('');
+  const geladen = _loadSafe('ds_gemini_modelle', []);
+  const namen = geladen.length ? [...new Set([aktuell, ...geladen])] : [...new Set([aktuell, STANDARD_MODELL])];
+  sel.innerHTML = namen.map(n => {
+    const fehlt = geladen.length && !geladen.includes(n);
+    return '<option value="' + esc(n) + '"' + (n === aktuell ? ' selected' : '') + '>' + esc(n) +
+      (n === STANDARD_MODELL ? ' (Standard)' : '') + (fehlt ? ' ⚠ für deinen Key nicht verfügbar' : '') + '</option>';
+  }).join('');
 }
 
 async function ladeModelle() {
@@ -748,8 +754,10 @@ async function ladeModelle() {
       .filter(m => (m.supportedGenerationMethods || []).includes('generateContent') && /^models\/gemini/.test(m.name))
       .map(m => m.name.replace(/^models\//, ''))
       .sort().reverse();
-    modellAuswahlFuellen(liste);
-    hint.textContent = '✓ ' + liste.length + ' Modelle verfügbar. Eines auswählen und „Modell speichern“ klicken.';
+    try { localStorage.setItem('ds_gemini_modelle', JSON.stringify(liste)); } catch(e) {}
+    modellAuswahlFuellen();
+    hint.textContent = '✓ ' + liste.length + ' Modelle verfügbar. Eines auswählen und „Modell speichern“ klicken.' +
+      (liste.includes(geminiModell()) ? '' : ' ⚠ Das aktuell eingestellte Modell „' + geminiModell() + '“ ist für deinen Key nicht verfügbar – bitte ein anderes wählen.');
   } catch(e) {
     hint.textContent = 'Abfrage fehlgeschlagen (' + e.message + ') – API Key prüfen.';
   }
@@ -758,6 +766,8 @@ async function ladeModelle() {
 function speichereModell() {
   const m = document.getElementById('modellSelect').value;
   if (!/^[a-z0-9][a-z0-9.\-]*$/i.test(m)) return;
+  const geladen = _loadSafe('ds_gemini_modelle', []);
+  if (geladen.length && !geladen.includes(m)) { toast('„' + m + '“ ist für deinen Key nicht verfügbar – bitte ein Modell aus der Liste wählen.', 'warn'); return; }
   localStorage.setItem('ds_gemini_modell', m);
   document.getElementById('modellHint').textContent = '✓ Gespeichert: ' + m + ' – gilt ab dem nächsten Start.';
   toast('KI-Modell: ' + m, 'ok');
