@@ -507,6 +507,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
             <div class="dash-section-title" style="margin-bottom:0;">Zuletzt verarbeitet</div>
             <button class="btn btn-ghost btn-sm" id="openBelegeCheckBtn">🗃 Belege prüfen</button>
+            <button class="btn btn-ghost btn-sm" id="duplikateBtn">🔍 Duplikate prüfen</button>
           </div>
           <div id="dash-recent"><div style="color:var(--text3);font-size:13px;">Noch keine Dokumente verarbeitet</div></div>
         </div>
@@ -725,7 +726,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 // Kein SECRET im Frontend. Kein lokaler Algorithmus.
 // ══════════════════════════════════════════════
 const SUPABASE_VALIDATE_URL = 'https://qvvsuksdribtjkplaynu.supabase.co/functions/v1/validate-license';
-const APP_VERSION = '2026-11-22.13';
+const APP_VERSION = '2026-11-22.15';
 const GEMINI_REQUEST_DELAY_MS = 4200; // Gemini Free Tier: max 15 Req/Min → min. 4s Abstand
 
 // ── KI-Modell (in den Einstellungen wählbar) ──
@@ -1223,20 +1224,22 @@ const STANDARD_REGELN = [{
   id: 'r_laura_studium', aktiv: true,
   stichwoerter: 'Laura, Studium, Architekturstudium',
   kategorie: 'Steuer', person: 'Laura',
-  hinweis: 'Nur wenn Betreff oder Empfänger erkennbar auf Laura oder ihr Studium hinweisen (z. B. Hochschule, Semesterbeitrag, Studiengebühren, Immatrikulation, Fachliteratur oder Software fürs Studium). NICHT bei Architektenrechnungen, Bauleistungen, Handwerker- oder sonstigen Baurechnungen – diese normal einordnen.'
+  hinweis: 'Nur wenn Betreff, Empfänger oder der Original-Dateiname erkennbar auf Laura oder ihr Studium hinweisen (z. B. „Laura“ oder „Studium“ im Dateinamen, Hochschule, Semesterbeitrag, Studiengebühren, Immatrikulation, Fachliteratur oder Software fürs Studium). NICHT bei Architektenrechnungen, Bauleistungen, Handwerker- oder sonstigen Baurechnungen – diese normal einordnen.'
 }];
-// Frühere, vom Nutzer unveränderte Fassung der Laura-Regel
-const ALTE_LAURA_REGEL = {
-  stichwoerter: 'Studium, Architektur',
-  hinweis: 'Auch sinnverwandt: Hochschule, Universität, Semesterbeitrag, Studiengebühren, Architekturstudium, Fachliteratur, Software oder Material fürs Studium.'
-};
+// Frühere, vom Nutzer unveränderte Fassungen der Laura-Regel (werden automatisch aktualisiert)
+const ALTE_LAURA_REGELN = [
+  {stichwoerter: 'Studium, Architektur',
+   hinweis: 'Auch sinnverwandt: Hochschule, Universität, Semesterbeitrag, Studiengebühren, Architekturstudium, Fachliteratur, Software oder Material fürs Studium.'},
+  {stichwoerter: 'Laura, Studium, Architekturstudium',
+   hinweis: 'Nur wenn Betreff oder Empfänger erkennbar auf Laura oder ihr Studium hinweisen (z. B. Hochschule, Semesterbeitrag, Studiengebühren, Immatrikulation, Fachliteratur oder Software fürs Studium). NICHT bei Architektenrechnungen, Bauleistungen, Handwerker- oder sonstigen Baurechnungen – diese normal einordnen.'}
+];
 let regeln = _loadSafe('ds_regeln', null);
 if (!Array.isArray(regeln)) {
   regeln = STANDARD_REGELN.map(r => ({...r}));
   try { localStorage.setItem('ds_regeln', JSON.stringify(regeln)); } catch(e) {}
 } else {
   const laura = regeln.find(r => r.id === 'r_laura_studium');
-  if (laura && laura.stichwoerter === ALTE_LAURA_REGEL.stichwoerter && laura.hinweis === ALTE_LAURA_REGEL.hinweis) {
+  if (laura && ALTE_LAURA_REGELN.some(a => a.stichwoerter === laura.stichwoerter && a.hinweis === laura.hinweis)) {
     laura.stichwoerter = STANDARD_REGELN[0].stichwoerter;
     laura.hinweis = STANDARD_REGELN[0].hinweis;
     try { localStorage.setItem('ds_regeln', JSON.stringify(regeln)); } catch(e) {}
@@ -2031,7 +2034,7 @@ async function processFile(item) {
   if (!kannKiLesen(mimeType)) {
     return alsUnklar(item, '', '', '', '', '', false, 'Dateityp ' + mimeType + ' kann ' + kiName() + ' nicht lesen (z. B. HEIC) – bitte manuell zuordnen oder als JPG/PDF speichern.', 0);
   }
-  const prompt = buildPrompt(categories);
+  const prompt = buildPrompt(categories, name);
   const antwort = await kiAnfrage(base64, mimeType, prompt, {maxTokens: 1024});
   const rawText = antwort.text;
   if (!rawText) {
@@ -2180,6 +2183,16 @@ async function schreibeVerifiziert(destFolder, wunschName, buffer, hash) {
  * 4. Nur wenn unter dem Namen noch GENAU die gelesene Datei liegt: Quelle löschen
  * Jeder Fehler vor Schritt 4 lässt die Quelle unangetastet.
  */
+// Name einer Datei im Ordner mit genau diesem Inhalt (gleiche Größe + SHA-256) oder null
+async function findeGleicheDatei(ordner, groesse, hash) {
+  for await (const [name, h] of ordner.entries()) {
+    if (h.kind !== 'file') continue;
+    const f = await h.getFile();
+    if (f.size === groesse && await sha256Hex(await f.arrayBuffer()) === hash) return name;
+  }
+  return null;
+}
+
 async function sicherVerschieben(srcFileHandle, srcFolderHandle, destFolderHandle, wunschName, {archivieren = false} = {}) {
   let srcFile, srcBuffer;
   try {
@@ -2193,14 +2206,17 @@ async function sicherVerschieben(srcFileHandle, srcFolderHandle, destFolderHandl
   }
   const hash = await sha256Hex(srcBuffer);
 
-  const finalName = await schreibeVerifiziert(destFolderHandle, wunschName, srcBuffer, hash);
+  // Beim Ablegen aus _Eingang/_Unklar: liegt der gleiche Inhalt schon im Zielordner, keine zweite Kopie anlegen
+  const vorhanden = archivieren ? await findeGleicheDatei(destFolderHandle, srcBuffer.byteLength, hash) : null;
+  const finalName = vorhanden || await schreibeVerifiziert(destFolderHandle, wunschName, srcBuffer, hash);
+  if (vorhanden) toast('„' + srcFileHandle.name + '“ ist inhaltlich identisch mit „' + vorhanden + '“ – nicht doppelt abgelegt.', 'info');
 
   if (archivieren) {
     try {
       const archiv = await workspaceHandle.getDirectoryHandle(ARCHIV_ORDNER, {create:true});
-      await schreibeVerifiziert(archiv, srcFileHandle.name, srcBuffer, hash);
+      if (!await findeGleicheDatei(archiv, srcBuffer.byteLength, hash)) await schreibeVerifiziert(archiv, srcFileHandle.name, srcBuffer, hash);
     } catch(e) {
-      try { await destFolderHandle.removeEntry(finalName); } catch(_) {}
+      if (!vorhanden) { try { await destFolderHandle.removeEntry(finalName); } catch(_) {} }
       throw new Error('Sicherungskopie in ' + ARCHIV_ORDNER + ' fehlgeschlagen: ' + e.message + ' – Original bleibt im _Eingang.');
     }
   }
@@ -2227,7 +2243,8 @@ async function sicherKopieren(srcFolderName, destFolderName, fileName) {
   const srcBuffer = await (await (await srcFolder.getFileHandle(fileName)).getFile()).arrayBuffer();
   if (srcBuffer.byteLength === 0) throw new Error('Quelldatei für Kopie ist leer.');
   const destFolder = await workspaceHandle.getDirectoryHandle(destFolderName, {create:true});
-  return schreibeVerifiziert(destFolder, fileName, srcBuffer, await sha256Hex(srcBuffer));
+  const hash = await sha256Hex(srcBuffer);
+  return (await findeGleicheDatei(destFolder, srcBuffer.byteLength, hash)) || schreibeVerifiziert(destFolder, fileName, srcBuffer, hash);
 }
 
 /** Aus _Eingang in Kategorieordner verschieben – Original wird in _Archiv gesichert. */
@@ -3187,7 +3204,7 @@ function fileIcon(name) {
 // ══════════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════════
-function buildPrompt(cats) {
+function buildPrompt(cats, dateiName) {
   // Kategoriebeschreibungen für Gemini aufbereiten
   const katDetails = cats.map(k => {
     let detail = '- ' + k.name;
@@ -3203,6 +3220,8 @@ function buildPrompt(cats) {
     '## VERFÜGBARE KATEGORIEN (NUR diese verwenden):\n' +
     (katDetails || 'keine – kategorie leer lassen') + '\n\n' +
     regelnPromptTeil() +
+    (dateiName ? '## ORIGINAL-DATEINAME (vom Nutzer vergeben – enthält oft Hinweise auf Person oder Thema, z. B. „Laura“, „Studium“, „KFZ“; bei Kategorie, Regeln und Person mitberücksichtigen, aber der Dokumentinhalt hat Vorrang)\n' +
+      String(dateiName).replace(/[\r\n]/g, ' ').substring(0, 150) + '\n\n' : '') +
     '## PRIORITÄTSREIHENFOLGE bei Unklarheit:\n' +
     '1. Versicherungen (alle Policen, Beiträge, Versicherungsschreiben)\n' +
     '2. Bank & Finanzen (Kontoauszüge, Depot, Kapitalerträge)\n' +
@@ -3393,6 +3412,99 @@ async function belegeInPapierkorb(idx) {
   }
 }
 
+// ══════════════════════════════════════════════
+// DUPLIKATE PRÜFEN – nach Inhalt (SHA-256), nicht nach Namen
+// ══════════════════════════════════════════════
+async function duplikatePruefen() {
+  if (!await ensureWorkspace()) return;
+  const btn = document.getElementById('duplikateBtn');
+  const btnText = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Prüfe …';
+  try {
+    const dateien = [];
+    for (const k of categories) {
+      let dir;
+      try { dir = await workspaceHandle.getDirectoryHandle(k.folderName, {create:false}); } catch(e) { continue; }
+      for await (const [name, h] of dir.entries()) {
+        if (h.kind !== 'file') continue;
+        const f = await h.getFile();
+        dateien.push({ordner: k.folderName, sekundaer: !!k.isSecondary, name, handle: h, dir, groesse: f.size, geaendert: f.lastModified});
+      }
+    }
+    const proGroesse = new Map();
+    for (const d of dateien) { if (!proGroesse.has(d.groesse)) proGroesse.set(d.groesse, []); proGroesse.get(d.groesse).push(d); }
+    const gruppen = [];
+    for (const liste of proGroesse.values()) {
+      if (liste.length < 2) continue;
+      const proHash = new Map();
+      for (const d of liste) {
+        const hash = await sha256Hex(await (await d.handle.getFile()).arrayBuffer());
+        if (!proHash.has(hash)) proHash.set(hash, []);
+        proHash.get(hash).push(d);
+      }
+      for (const g of proHash.values()) {
+        if (g.length < 2) continue;
+        // Kopie im Sekundärordner (Steuer) ist gewollt – doppelt ist nur, was mehrfach im Hauptbereich oder mehrfach im selben Sekundärordner liegt
+        const rang = d => [/_\d+\.[^.]+$/.test(d.name) ? 1 : 0, d.geaendert, d.name.length];
+        const sortiert = arr => arr.slice().sort((a, b) => { const x = rang(a), y = rang(b); return x[0] - y[0] || x[1] - y[1] || x[2] - y[2]; });
+        const behalten = [], weg = [];
+        const primaer = sortiert(g.filter(d => !d.sekundaer));
+        if (primaer.length) { behalten.push(primaer[0]); weg.push(...primaer.slice(1)); }
+        const sekOrdner = [...new Set(g.filter(d => d.sekundaer).map(d => d.ordner))];
+        for (const o of sekOrdner) { const s2 = sortiert(g.filter(d => d.ordner === o)); behalten.push(s2[0]); weg.push(...s2.slice(1)); }
+        if (weg.length) gruppen.push({behalten, weg});
+      }
+    }
+    const doppeltNamen = new Set(gruppen.flatMap(g => g.weg.map(d => d.ordner + '/' + d.name)));
+    const namensgleich = dateien.filter(d => /_\d+\.[^.]+$/.test(d.name) && !doppeltNamen.has(d.ordner + '/' + d.name)).length;
+    zeigeDuplikate(gruppen, namensgleich);
+  } catch(e) {
+    toast('Duplikat-Prüfung fehlgeschlagen: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = btnText;
+  }
+}
+
+function zeigeDuplikate(gruppen, namensgleich) {
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay active';
+  const box = document.createElement('div');
+  box.className = 'modal';
+  const hinweis = namensgleich ? '<p class="vs-klein" style="margin-bottom:12px;">' + namensgleich + ' Datei(en) mit _1, _2 … sind <b>verschiedene Dokumente mit gleichem Namen</b> – keine Duplikate.</p>' : '';
+  box.innerHTML = '<h2 style="margin-bottom:6px;">🔍 Duplikate</h2>' + hinweis +
+    (gruppen.length === 0 ? '<div class="empty" style="padding:16px 0;">✅ Keine inhaltsgleichen Doppelten gefunden.</div>'
+      : '<p class="vs-klein" style="margin-bottom:12px;">' + gruppen.length + ' Dokument(e) liegen mehrfach mit identischem Inhalt vor. Angehakte Kopien werden nach _Papierkorb verschoben (nicht gelöscht). Kopien im Ordner Steuer sind gewollt und werden nicht angezeigt.</p>' +
+        gruppen.map((g, gi) => '<div class="q-card" style="margin-bottom:8px;">' +
+          g.behalten.map(d => '<div class="vs-klein" style="color:var(--accent2);">✓ behalten: ' + esc(d.ordner + ' / ' + d.name) + '</div>').join('') +
+          g.weg.map((d, di) => '<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:4px;"><input type="checkbox" checked data-g="' + gi + '" data-d="' + di + '"> → _Papierkorb: ' + esc(d.ordner + ' / ' + d.name) + '</label>').join('') +
+        '</div>').join('')) +
+    '<div class="modal-actions"><button class="btn btn-ghost" id="_dupZu">Schließen</button>' +
+    (gruppen.length ? '<button class="btn btn-primary" id="_dupWeg">Angehakte nach _Papierkorb</button>' : '') + '</div>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  const zu = () => document.body.removeChild(overlay);
+  box.querySelector('#_dupZu').onclick = zu;
+  const wegBtn = box.querySelector('#_dupWeg');
+  if (wegBtn) wegBtn.onclick = () => mitSperre(async () => {
+    wegBtn.disabled = true; wegBtn.textContent = '⏳ …';
+    const papierkorb = await workspaceHandle.getDirectoryHandle('_Papierkorb', {create:true});
+    let n = 0, fehler = 0;
+    for (const cb of box.querySelectorAll('input[type=checkbox]:checked')) {
+      const d = gruppen[+cb.dataset.g].weg[+cb.dataset.d];
+      try {
+        await sicherVerschieben(d.handle, d.dir, papierkorb, d.name);
+        const kat = categories.find(k => k.folderName === d.ordner);
+        const i = log.findIndex(l => l.newName === d.name && kat && l.kategorie === kat.name);
+        if (i !== -1) log.splice(i, 1);
+        n++;
+      } catch(e) { fehler++; console.warn('Duplikat verschieben fehlgeschlagen:', d.name, e); }
+    }
+    saveState(); renderAll(); renderFolderView();
+    toast(n + ' Duplikat(e) nach _Papierkorb verschoben' + (fehler ? ', ' + fehler + ' fehlgeschlagen' : ''), fehler ? 'warn' : 'ok');
+    zu();
+  });
+}
+
 function toast(msg, type) {
   const wrap = document.getElementById('toastWrap');
   const t = document.createElement('div');
@@ -3441,6 +3553,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const unklarNeu = () => mitSperre(() => runProcess(document.getElementById('unklarBtn'), {nurUnklar:true}));
   document.getElementById('unklarBtn')?.addEventListener('click', unklarNeu);
   document.getElementById('openBelegeCheckBtn')?.addEventListener('click', openBelegeCheck);
+  document.getElementById('duplikateBtn')?.addEventListener('click', () => mitSperre(duplikatePruefen));
 
   // Dashboard Log – Event Delegation (Fix 17)
   const dashRecent = document.getElementById('dash-recent');
