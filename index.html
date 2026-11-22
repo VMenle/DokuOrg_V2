@@ -700,7 +700,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15
 // Kein SECRET im Frontend. Kein lokaler Algorithmus.
 // ══════════════════════════════════════════════
 const SUPABASE_VALIDATE_URL = 'https://qvvsuksdribtjkplaynu.supabase.co/functions/v1/validate-license';
-const APP_VERSION = '2026-11-22.6';
+const APP_VERSION = '2026-11-22.7';
 const GEMINI_REQUEST_DELAY_MS = 4200; // Gemini Free Tier: max 15 Req/Min → min. 4s Abstand
 let _licCheckAttempts = 0;
 const MAX_LIC_ATTEMPTS = 5;
@@ -1246,7 +1246,7 @@ async function workspaceErreichbar() {
   } catch(e) { return false; }
 }
 
-const RESERVIERTE_ORDNER = ['_eingang', '_papierkorb', '_unsicher', '_archiv'];
+const RESERVIERTE_ORDNER = ['_eingang', '_papierkorb', '_unsicher', '_archiv', '_unklar'];
 
 async function _hatOrdner(parent, name) {
   try { await parent.getDirectoryHandle(name, {create:false}); return true; }
@@ -1536,6 +1536,7 @@ function showPage(id, btn) {
   if (page) page.classList.add('active');
   if (btn) btn.classList.add('active');
   if (id === 'dashboard') { renderDashboard(); renderFolderView(); }
+  if (id === 'queue') unklarAbgleich();
   if (id === 'einstellungen') { initKonfidenzSlider(); renderRegeln(); }
   if (id === 'versicherungen' && typeof renderVersicherungen === 'function') renderVersicherungen();
 }
@@ -1577,14 +1578,54 @@ function istTechnischerFehler(q) {
   return !!q.fehler || /^(Fehler:|Fehler bei Analyse|Timeout bei Analyse)/.test(q.reason || '');
 }
 
-// Ist diese Datei als „unklar“ offen (echte Zuordnungsfrage, kein technischer Fehler)?
-function istUnklar(name, f) {
+const UNKLAR_ORDNER = '_Unklar';
+
+// Liegt diese Datei noch als „unklar“ im _Eingang (Altbestand vor dem Ordner _Unklar)?
+function istUnklarImEingang(name, f) {
   return queue.some(q => q.status === 'offen' && q.name === name && !istTechnischerFehler(q) &&
+    (q.ordner || '_Eingang') === '_Eingang' &&
     (q.groesse === undefined || (q.groesse === f.size && q.geaendert === f.lastModified)));
 }
 
-// nurUnklar=false: neue Dateien analysieren, unklare überspringen
-// nurUnklar=true:  nur die unklaren Dateien erneut analysieren
+// Unklare Datei sicher nach _Unklar verschieben und den Eintrag dort führen
+async function alsUnklar(item, kat, art, typ, person, datum, steuer, reason, konfidenz, details) {
+  let ordner = item.ordnerName || '_Eingang', dateiName = item.name, file = item.file;
+  if (ordner !== UNKLAR_ORDNER) {
+    try {
+      const unklar = await workspaceHandle.getDirectoryHandle(UNKLAR_ORDNER, {create:true});
+      dateiName = await sicherVerschieben(item.handle, item.ordnerHandle, unklar, item.name);
+      file = await (await unklar.getFileHandle(dateiName)).getFile();
+      ordner = UNKLAR_ORDNER;
+    } catch(e) {
+      console.warn('Verschieben nach _Unklar fehlgeschlagen:', e);
+      toast('„' + item.name + '“ konnte nicht nach ' + UNKLAR_ORDNER + ' verschoben werden und bleibt im _Eingang.', 'warn');
+    }
+  }
+  addToQueue(dateiName, kat, art, typ, person, datum, steuer, reason, konfidenz, file, {...(details || {}), ordner});
+  return 'queue';
+}
+
+// Selbst verschobene oder gelöschte Dateien aus _Unklar als erledigt markieren
+async function unklarAbgleich() {
+  if (!workspaceHandle) return;
+  const namen = new Set();
+  try {
+    const u = await workspaceHandle.getDirectoryHandle(UNKLAR_ORDNER, {create:false});
+    for await (const [n, h] of u.entries()) if (h.kind === 'file') namen.add(n);
+  } catch(e) {
+    if (e.name !== 'NotFoundError') return;
+  }
+  let geaendert = false;
+  for (const q of queue) {
+    if (q.status === 'offen' && q.ordner === UNKLAR_ORDNER && !namen.has(q.name)) {
+      q.status = 'erledigt'; q.reason = (q.reason || '') + ' (selbst verschoben)'; geaendert = true;
+    }
+  }
+  if (geaendert) { saveState(); renderQueue(); renderDashboard(); }
+}
+
+// nurUnklar=false: neue Dateien im _Eingang analysieren
+// nurUnklar=true:  alle Dateien im Ordner _Unklar erneut analysieren
 async function runProcess(btn, {nurUnklar = false} = {}) {
   if (_prozessLaeuft) { toast('Prozess läuft bereits – bitte warten', 'warn'); return; }
   if (!await ensureWorkspace()) return;
@@ -1602,35 +1643,51 @@ async function runProcess(btn, {nurUnklar = false} = {}) {
   progress.classList.add('show');
 
   try {
-    const files = [];
-    let schonAbgelegt = 0, unklarUebersprungen = 0;
-    for await (const [name, handle] of eingangsHandle.entries()) {
+    await unklarAbgleich();
+    const unklarHandle = await workspaceHandle.getDirectoryHandle(UNKLAR_ORDNER, {create:true});
+    const quelle = nurUnklar ? unklarHandle : eingangsHandle;
+    const quelleName = nurUnklar ? UNKLAR_ORDNER : '_Eingang';
+    let files = [];
+    const altUnklar = [];
+    let schonAbgelegt = 0;
+    for await (const [name, handle] of quelle.entries()) {
       if (handle.kind === 'file') {
         const f = await handle.getFile();
         const allowed = ['application/pdf','image/jpeg','image/jpg','image/png','image/webp','image/gif','image/heic'];
         if (allowed.includes(f.type) || name.match(/\.(pdf|jpg|jpeg|png|webp|gif|heic)$/i)) {
           // Bereits abgelegt (nur Löschen scheiterte) – erneute Analyse würde ein Duplikat ablegen
           if (istVerarbeitet(f)) { schonAbgelegt++; continue; }
-          const unklar = istUnklar(name, f);
-          if (unklar !== nurUnklar) { if (unklar) unklarUebersprungen++; continue; }
-          files.push({name, handle, file:f});
+          const item = {name, handle, file:f, ordnerHandle: quelle, ordnerName: quelleName};
+          if (!nurUnklar && istUnklarImEingang(name, f)) { altUnklar.push(item); continue; }
+          files.push(item);
         }
       }
     }
     if (schonAbgelegt > 0) {
-      toast(schonAbgelegt + ' Datei(en) im _Eingang sind bereits abgelegt (Kopie in Kategorie + _Archiv) und konnten nur nicht entfernt werden – bitte im _Eingang manuell löschen.', 'warn');
+      toast(schonAbgelegt + ' Datei(en) in ' + quelleName + ' sind bereits abgelegt (Kopie in Kategorie + _Archiv) und konnten nur nicht entfernt werden – bitte dort manuell löschen.', 'warn');
     }
+    // Altbestand: unklare Dateien, die noch im _Eingang liegen, ohne neue Analyse nach _Unklar verschieben
+    for (const item of altUnklar) {
+      const q = queue.find(x => x.status === 'offen' && x.name === item.name && (x.ordner || '_Eingang') === '_Eingang' && !istTechnischerFehler(x));
+      try {
+        const neuName = await sicherVerschieben(item.handle, eingangsHandle, unklarHandle, item.name);
+        const nf = await (await unklarHandle.getFileHandle(neuName)).getFile();
+        if (q) Object.assign(q, {name: neuName, ordner: UNKLAR_ORDNER, groesse: nf.size, geaendert: nf.lastModified});
+      } catch(e) { console.warn('Altbestand nach _Unklar fehlgeschlagen:', e); }
+    }
+    if (altUnklar.length) { saveState(); renderQueue(); toast(altUnklar.length + ' unklare Datei(en) aus dem _Eingang nach ' + UNKLAR_ORDNER + ' verschoben', 'info'); }
+
     // Alte offene Einträge der jetzt analysierten Dateien und technisch gescheiterte
     // Einträge werden durch das neue Ergebnis ersetzt
-    const namenImEingang = new Set(files.map(x => x.name));
+    const analysiert = new Set(files.map(x => x.name));
     const vorher = queue.length;
-    queue = queue.filter(q => !(q.status === 'offen' && (namenImEingang.has(q.name) || istTechnischerFehler(q))));
+    queue = queue.filter(q => !(q.status === 'offen' &&
+      ((analysiert.has(q.name) && (q.ordner || '_Eingang') === quelleName) || istTechnischerFehler(q))));
     if (queue.length !== vorher) { saveState(); renderQueue(); }
 
     if (files.length === 0) {
-      const msg = nurUnklar ? 'Keine unklaren Dateien im _Eingang.'
-        : unklarUebersprungen > 0 ? 'Keine neuen Dokumente. ' + unklarUebersprungen + ' unklare Datei(en) liegen im _Eingang – über „🔄 Unklare neu analysieren“ erneut prüfen oder unter „Unklar“ zuordnen.'
-        : 'Keine Dokumente im Eingangsordner "_Eingang".';
+      const msg = nurUnklar ? 'Keine Dateien im Ordner ' + UNKLAR_ORDNER + '.'
+        : 'Keine neuen Dokumente im Eingangsordner "_Eingang".';
       info.textContent = msg;
       toast(msg, 'info');
     } else {
@@ -1681,10 +1738,10 @@ async function runProcess(btn, {nurUnklar = false} = {}) {
             toast('📁 Ordnerzugriff verweigert – bitte Ordner neu verbinden', 'err');
           } else if (e.name === 'AbortError' || msg.includes('Timeout')) {
             toast('⏱ Timeout bei "' + item.name + '" – wird beim nächsten Start erneut versucht', 'warn');
-            addToQueue(item.name, '', '', '', '', '', false, 'Timeout bei Analyse – wird beim nächsten Start erneut versucht, oder manuell zuordnen.', 0, item.file, {fehler:true});
+            addToQueue(item.name, '', '', '', '', '', false, 'Timeout bei Analyse – wird beim nächsten Start erneut versucht, oder manuell zuordnen.', 0, item.file, {fehler:true, ordner:item.ordnerName});
           } else {
             addToQueue(item.name, '', '', '', '', '', false,
-              'Fehler: ' + msg.substring(0, 200) + ' – Datei liegt unverändert im _Eingang und wird beim nächsten Start erneut versucht, oder manuell zuordnen.', 0, item.file, {fehler:true});
+              'Fehler: ' + msg.substring(0, 200) + ' – Datei liegt unverändert in ' + item.ordnerName + ' und wird erneut versucht, oder manuell zuordnen.', 0, item.file, {fehler:true, ordner:item.ordnerName});
             toast('⚠ Fehler bei "' + item.name + '": ' + msg.substring(0, 100), 'warn');
           }
         }
@@ -1701,7 +1758,7 @@ async function runProcess(btn, {nurUnklar = false} = {}) {
       bar.style.width = '100%';
       const inQueue = queue.filter(q => q.status === 'offen').length - queueVorher;
       const teile = [abgelegt + ' abgelegt'];
-      if (inQueue > 0) teile.push(inQueue + ' unklar (liegen weiter im _Eingang)');
+      if (inQueue > 0) teile.push(inQueue + ' unklar (Ordner _Unklar)');
       const statusMsg = (abbrechen ? 'Abgebrochen: ' : '') + teile.join(', ') +
         (abbrechen ? '. Rest bleibt im _Eingang für den nächsten Start.' : '.') +
         (abgelegt > 0 ? ' Neue Namen siehe Protokoll; Originale liegen in _Archiv.' : '');
@@ -1738,8 +1795,7 @@ async function processFile(item, apiKey) {
 
   // Dateigröße prüfen (max 15MB)
   if (file.size > MAX_DATEIGROESSE_MB * 1024 * 1024) {
-    addToQueue(name, '', '', '', '', '', false, 'Datei zu groß (' + (file.size/1024/1024).toFixed(1) + ' MB, max. ' + MAX_DATEIGROESSE_MB + ' MB). Bitte manuell zuordnen.', 0, file);
-    return 'queue';
+    return alsUnklar(item, '', '', '', '', '', false, 'Datei zu groß (' + (file.size/1024/1024).toFixed(1) + ' MB, max. ' + MAX_DATEIGROESSE_MB + ' MB). Bitte manuell zuordnen.', 0);
   }
 
   // Base64 kodieren
@@ -1798,8 +1854,7 @@ async function processFile(item, apiKey) {
 
   if (!rawText) {
     const reason = data.candidates?.[0]?.finishReason || 'UNKNOWN';
-    addToQueue(name, '', '', '', '', '', false, 'Gemini gab keine Antwort zurück (finishReason: ' + reason + ')', 0, file);
-    return 'queue';
+    return alsUnklar(item, '', '', '', '', '', false, 'Gemini gab keine Antwort zurück (finishReason: ' + reason + ')', 0);
   }
 
   // JSON parsen
@@ -1850,7 +1905,7 @@ async function processFile(item, apiKey) {
 
   if (konfident) {
     // Automatisch ablegen
-    const tatsaecklicherName = await moveFile(handle, eingangsHandle, katMatch.folderName, newName);
+    const tatsaecklicherName = await moveFile(handle, item.ordnerHandle, katMatch.folderName, newName);
 
     // Sekundärordner-Kopie: Kopie in alle isSecondary-Kategorien wenn steuerrelevant
     if (steuer) {
@@ -1870,8 +1925,7 @@ async function processFile(item, apiKey) {
     }
     return 'abgelegt';
   }
-  addToQueue(name, kategorie, art, typ, person, datum, steuer, unklarGrund, konfidenz, file, details);
-  return 'queue';
+  return alsUnklar(item, kategorie, art, typ, person, datum, steuer, unklarGrund, konfidenz, details);
 }
 
 // ══════════════════════════════════════════════
@@ -2046,9 +2100,11 @@ function showFolderMissingDialog(folderName) {
 
 /** Datei aus Eingang in Kategorie verschieben (für Queue-Auflösung) */
 async function moveFromQueueToCategory(item, destFolderName, newName) {
-  const eingang = await workspaceHandle.getDirectoryHandle('_Eingang', {create:false});
-  let srcHandle = null;
-  try { srcHandle = await eingang.getFileHandle(item.name); } catch(e) {}
+  let eingang = null, srcHandle = null;
+  try {
+    eingang = await workspaceHandle.getDirectoryHandle(item.ordner || '_Eingang', {create:false});
+    srcHandle = await eingang.getFileHandle(item.name);
+  } catch(e) {}
   if (!srcHandle) throw new Error('nicht im Eingangsordner');
 
   // Liegt unter dem Namen noch dieselbe Datei wie beim Einreihen?
@@ -2073,6 +2129,7 @@ function addToQueue(name, kat, art, typ, person, datum, steuer, reason, konfiden
     absender: details ? details.absender : '',
     beschreibung: details ? details.beschreibung || '' : '',
     fehler: !!(details && details.fehler),
+    ordner: (details && details.ordner) || '_Eingang',
     groesse: file ? file.size : undefined,
     geaendert: file ? file.lastModified : undefined,
     added: new Date().toISOString().split('T')[0]
@@ -2095,7 +2152,7 @@ function renderQueue() {
   if (open.length === 0) { el.innerHTML = '<div class="empty">✅ Keine offenen Dokumente</div>'; return; }
   el.innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">' +
-      '<span class="vs-klein">Diese Dateien liegen weiter im _Eingang. „▶ Jetzt starten“ überspringt sie – hier zuordnen oder erneut analysieren.</span>' +
+      '<span class="vs-klein">Diese Dateien liegen im Ordner _Unklar. Hier zuordnen, erneut analysieren – oder im Ordner selbst verschieben; die App merkt das.</span>' +
       '<button class="btn btn-ghost btn-sm" data-unklar-neu="1">🔄 Unklare neu analysieren</button></div>' +
     open.map(q =>
     '<div class="q-card">' +
@@ -2884,6 +2941,13 @@ async function renderFolderView() {
         html += '<div class="fv-row" style="padding-left:32px;"><span class="fv-icon" style="font-size:12px;">' + fileIcon(name) + '</span><span class="fv-name" style="font-size:12px;color:var(--text2);">' + esc(name) + '</span></div>';
       });
     }
+    let unklarAnzahl = 0;
+    try {
+      const uh = await workspaceHandle.getDirectoryHandle(UNKLAR_ORDNER, {create:false});
+      for await (const [name, h] of uh.entries()) if (h.kind === 'file' && FILE_PATTERN.test(name)) unklarAnzahl++;
+    } catch(e) {}
+    html += '<div class="fv-row"><span class="fv-icon">❓</span><span class="fv-name"' + (unklarAnzahl ? '' : ' style="color:var(--text3);"') + '>' + UNKLAR_ORDNER + '</span><span class="fv-count' + (unklarAnzahl ? ' has-files' : '') + '">' +
+      (unklarAnzahl ? unklarAnzahl + ' unklar' : 'leer') + '</span></div>';
     html += '</div>';
 
     // Kategorieordner

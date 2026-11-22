@@ -32,7 +32,7 @@
 1. Dokument (PDF, JPG, PNG, WEBP, GIF, HEIC) in den `_Eingang`-Ordner legen
 2. In der App auf **„▶ Jetzt starten"** klicken
 3. Die KI analysiert, benennt um und legt ab – automatisch
-4. Unsichere Dokumente erscheinen unter „Unklar" zur manuellen Zuordnung; sie bleiben bis dahin im `_Eingang`. „▶ Jetzt starten" überspringt sie, „🔄 Unklare neu analysieren" prüft nur sie erneut. Dateien, die nur an einem technischen Fehler scheiterten (z. B. Guthaben leer), versucht „Jetzt starten" automatisch erneut.
+4. Unsichere Dokumente werden sicher in den Ordner `_Unklar` verschoben und erscheinen unter „Unklar". Dort zuordnen – oder im Ordner selbst verschieben (die App erkennt das). „🔄 Unklare neu analysieren" prüft alle Dateien in `_Unklar` erneut, auch selbst hineingelegte. Dateien, die nur an einem technischen Fehler scheiterten (z. B. Guthaben leer), bleiben im `_Eingang` und werden beim nächsten Start automatisch erneut versucht.
 5. Jedes abgelegte Original wird unverändert und unter seinem ursprünglichen Namen in `_Archiv` gesichert. Den alten und neuen Namen zeigt das Protokoll.
 
 ### Eigene Regeln und Lernen aus Korrekturen
