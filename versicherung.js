@@ -432,12 +432,12 @@ async function vsGemini(base64, mimeType) {
   const t = setTimeout(() => controller.abort(), 60000);
   let res;
   try {
-    res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+    res = await fetch(geminiUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: base64 } }, { text: vsExtraktionsPrompt() }] }],
-        generationConfig: { thinkingConfig: { thinkingBudget: 0 }, temperature: 0.1, maxOutputTokens: 4096, responseMimeType: 'application/json' }
+        generationConfig: geminiGenConfig(4096, { responseMimeType: 'application/json' })
       }),
       signal: controller.signal
     });
